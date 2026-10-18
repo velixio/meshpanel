@@ -116,6 +116,10 @@ func Effective(role string, extra Cap) Cap {
 	return base | extra
 }
 
+// Within reports whether every capability in target is also in actor. People
+// may only grant, or manage accounts with, permissions they hold.
+func Within(target, actor Cap) bool { return target&^actor == 0 }
+
 func ValidRole(r string) bool { _, ok := Roles[r]; return ok }
 
 // Parse turns capability names into flags, ignoring unknown names.

@@ -9,8 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/meshpanel/meshpanel/internal/auth"
 	"github.com/meshpanel/meshpanel/internal/db"
 	"github.com/meshpanel/meshpanel/internal/hs"
+	"github.com/meshpanel/meshpanel/internal/perm"
 )
 
 func (f *fakeHS) GetPolicy(context.Context) (hs.Policy, error) {
@@ -201,3 +203,27 @@ func TestPolicyVisualEditAndDiff(t *testing.T) {
 func itoa(n int64) string { return strconvFormat(n) }
 
 func strconvFormat(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestIAMCannotEscalate(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	_, _ = h.account("boss", "owner", "")
+	mgr, secret := h.account("mgr", "viewer", "")
+	mgr.ExtraCaps = uint64(perm.ConfigureIAM)
+	h.d.UpdateAccount(ctx, mgr)
+	adm, _ := h.account("adm", "admin", "")
+	c := h.client()
+	c.login("mgr", secret)
+	c.post("/admin/people", "/admin/people/"+itoa(mgr.ID)+"/role", url.Values{"role": {"admin"}})
+	if a, _ := h.d.GetAccount(ctx, mgr.ID); a.Role != "viewer" {
+		t.Fatal("viewer+configure_iam promoted themselves to admin")
+	}
+	c.post("/admin/people", "/admin/people/invite", url.Values{"username": {"sock"}, "role": {"admin"}})
+	if ins, _ := h.d.ListInvites(ctx); len(ins) != 0 {
+		t.Fatal("invited someone with more power than the inviter")
+	}
+	c.post("/admin/people", "/admin/people/"+itoa(adm.ID)+"/password", url.Values{"password": {"attacker-chosen-pw"}})
+	if a, _ := h.d.GetAccount(ctx, adm.ID); auth.VerifyPassword(a.PasswordHash, "attacker-chosen-pw") {
+		t.Fatal("reset the password of a more powerful account")
+	}
+}
