@@ -1,0 +1,22 @@
+{{define "auth-page"}}{{$f := .Data}}
+{{if $f.Context}}
+  <h1>{{if eq $f.Context "ssh"}}Approve SSH access{{else}}Add this device{{end}}</h1>
+  <p class="lead">to {{.Brand.Name}}</p>
+  <div class="device"><span class="ico">{{icon "phone"}}</span><div><b>{{device $f.Device}}</b><div class="small muted">{{$f.IP}}</div></div></div>
+{{else}}
+  <h1>Sign in</h1>
+  <p class="lead">to {{.Brand.Name}}</p>
+{{end}}
+<form class="card" method="post" action="{{.Base}}/login" hx-boost="false">
+  {{template "csrf" .CSRF}}
+  <input type="hidden" name="next" value="{{$f.Next}}">
+  {{if $f.Error}}<div class="banner danger" role="alert">{{icon "alert"}}<div>{{$f.Error}}</div></div>{{end}}
+  <label class="field">Username
+    <input class="input" name="username" value="{{$f.Username}}" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus>
+  </label>
+  <label class="field">Password
+    <input class="input" type="password" name="password" autocomplete="current-password" required>
+  </label>
+  <button class="btn primary lg block">Continue</button>
+</form>
+{{end}}

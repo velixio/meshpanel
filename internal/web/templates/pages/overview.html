@@ -1,0 +1,82 @@
+{{define "content"}}{{$d := .Data}}{{$p := .}}
+<div class="page-head">
+  <div><h1>Overview</h1><p class="sub">Good to see you, {{.Me.Name}}.</p></div>
+  <div class="actions">
+    {{if has .Caps "generate_authkeys"}}<a class="btn" href="{{.Base}}/keys">{{icon "key"}}New key</a>{{else if has .Caps "generate_own_authkeys"}}<a class="btn" href="{{.Base}}/keys">{{icon "key"}}New key</a>{{end}}
+    <a class="btn primary" href="{{.Base}}/machines">{{icon "monitor"}}{{if has .Caps "read_machines"}}All machines{{else}}My devices{{end}}</a>
+  </div>
+</div>
+
+<div id="ov-stats" data-live="node changed health" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-select="#ov-stats" hx-swap="outerHTML">
+<div class="grid g4">
+  <div class="card stat ok"><span class="k"><span class="dot on"></span>Online</span><span class="v">{{$d.Online}}</span></div>
+  <div class="card stat"><span class="k"><span class="dot"></span>Offline</span><span class="v">{{$d.Offline}}</span></div>
+  <div class="card stat {{if $d.Pending}}warn{{end}}"><span class="k">{{icon "clock"}}Waiting for approval</span><span class="v">{{len $d.Pending}}</span></div>
+  <div class="card stat {{if $d.Expiring}}danger{{end}}"><span class="k">{{icon "key"}}Keys expiring in 7 days</span><span class="v">{{len $d.Expiring}}</span></div>
+</div>
+</div>
+
+<div class="split mt-lg">
+  <div class="stack lg">
+    <section id="ov-pending" class="card" data-live="registration changed" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-select="#ov-pending" hx-swap="outerHTML">
+      <div class="hd"><h2>Waiting for approval</h2><a class="btn ghost sm" href="{{.Base}}/approvals">History</a></div>
+      {{if $d.Pending}}
+        {{range $d.Pending}}{{template "pendingRow" dict "P" $p "R" .}}{{end}}
+      {{else}}
+        <div class="empty">{{icon "check"}}<b>Nothing to approve</b><span class="small">When someone adds a device, it shows up here and in Telegram.</span></div>
+      {{end}}
+    </section>
+
+    {{if $d.RoutesPending}}
+    <section class="card">
+      <div class="hd"><h2>Routes waiting for approval</h2><span class="hint">Advertised by devices, not active until approved</span></div>
+      <div class="list">
+      {{range $d.RoutesPending}}
+        <a class="item" href="{{$p.Base}}/machines/{{.ID}}">
+          <span class="dot {{if .Online}}on{{end}}"></span>
+          <div class="grow"><b>{{.DisplayName}}</b><div class="small muted">{{range .PendingRoutes}}{{if eq (risk .) "exit"}}<span class="badge warn">exit node</span> {{else if eq (risk .) "wide"}}<span class="badge warn mono">{{.}}</span> {{else}}<span class="badge mono">{{.}}</span> {{end}}{{end}}</div></div>
+          {{icon "chev"}}
+        </a>
+      {{end}}
+      </div>
+    </section>
+    {{end}}
+
+    {{if $d.Expiring}}
+    <section class="card">
+      <div class="hd"><h2>Keys expiring soon</h2><span class="hint">These devices must sign in again after expiry</span></div>
+      <div class="list">
+      {{range $d.Expiring}}
+        <a class="item" href="{{$p.Base}}/machines/{{.ID}}">
+          <span class="dot {{if .Online}}on{{end}}"></span>
+          <div class="grow"><b>{{.DisplayName}}</b> <span class="small muted">{{.UserName}}</span></div>
+          <span class="badge {{if .KeyExpired now}}danger{{else}}warn{{end}}">{{until .Expiry}}</span>
+        </a>
+      {{end}}
+      </div>
+    </section>
+    {{end}}
+
+    {{if and (not (has .Caps "read_machines")) $d.Mine}}
+    <section class="card">
+      <div class="hd"><h2>My devices</h2></div>
+      <div class="list">{{range $d.Mine}}<a class="item" href="{{$p.Base}}/machines/{{.ID}}"><span class="dot {{if .Online}}on{{end}}"></span><div class="grow"><b>{{.DisplayName}}</b><div class="small muted mono">{{ip .}}</div></div>{{icon "chev"}}</a>{{end}}</div>
+    </section>
+    {{end}}
+  </div>
+
+  <div class="stack lg">
+    <section id="ov-feed" class="card" data-live="*" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-select="#ov-feed" hx-swap="outerHTML">
+      <div class="hd"><h2>Activity</h2><a class="btn ghost sm" href="{{.Base}}/alerts">Alerts</a></div>
+      {{if or $d.Feed $d.Recent}}
+      <div class="list feed">
+        {{range $d.Feed}}<div class="item"><div class="txt">{{.Text}}</div><span class="when" data-ago="{{unix .CreatedAt}}">{{ago .CreatedAt}}</span></div>{{end}}
+        {{range $d.Recent}}<div class="item"><div class="txt"><code>{{.Action}}</code> {{.Target}}<div class="by">by {{.Actor}} via {{.Channel}}</div></div><span class="when" data-ago="{{unix .At}}">{{ago .At}}</span></div>{{end}}
+      </div>
+      {{else}}
+      <div class="empty">{{icon "bell"}}<b>Quiet so far</b><span class="small">Watch a device or user under Alerts to get notified here and on Telegram.</span></div>
+      {{end}}
+    </section>
+  </div>
+</div>
+{{end}}

@@ -1,0 +1,9 @@
+{{define "auth-page"}}
+<div class="done-mark bad">{{icon "alert"}}</div>
+<h1>{{.Data.Title}}</h1>
+<p class="lead">{{.Data.Message}}</p>
+<div class="card"><a class="btn block" href="{{.Base}}/">Go to the dashboard</a></div>
+{{end}}
+{{define "content"}}
+<div class="empty mt-lg">{{icon "alert"}}<b>{{.Data.Title}}</b><span>{{.Data.Message}}</span><a class="btn mt" href="{{.Base}}/">Back to overview</a></div>
+{{end}}

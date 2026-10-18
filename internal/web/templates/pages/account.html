@@ -1,0 +1,60 @@
+{{define "content"}}{{$d := .Data}}{{$p := .}}
+<div class="page-head"><div><h1>My account</h1><p class="sub">{{.Me.Username}} · {{.Me.Role}}{{if .Me.HSUser}} · devices register as <code>{{.Me.HSUser}}</code>{{end}}</p></div></div>
+{{if $d.NewCodes}}
+<section class="card" style="border-color:var(--ok)">
+  <div class="hd"><h2>New backup codes</h2><span class="hint">Your old codes no longer work. Save these now.</span></div>
+  <div class="bd stack"><div class="codes">{{range $d.NewCodes}}<span>{{.}}</span>{{end}}</div><button type="button" class="btn" data-copy="{{join $d.NewCodes "\n"}}">{{icon "copy"}}Copy codes</button></div>
+</section><div class="mt-lg"></div>
+{{end}}
+<div class="grid g2">
+  <section class="card" style="grid-column:1/-1">
+    <div class="hd"><h2>Theme</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/account/theme">{{template "csrf" .CSRF}}
+      <div class="themes">
+        <label class="theme-opt"><input type="radio" name="theme" value="paper" {{if eq .Me.Theme "paper"}}checked{{end}}><span class="sw"><i style="background:#f7f7f5"></i><i style="background:#ffffff"></i><i style="background:#1c1c1a"></i></span><span class="nm">Paper</span></label>
+        <label class="theme-opt"><input type="radio" name="theme" value="midnight" {{if eq .Me.Theme "midnight"}}checked{{end}}><span class="sw"><i style="background:#0b0d12"></i><i style="background:#171b26"></i><i style="background:#7c5cff"></i></span><span class="nm">Midnight</span></label>
+        <label class="theme-opt"><input type="radio" name="theme" value="console" {{if eq .Me.Theme "console"}}checked{{end}}><span class="sw"><i style="background:#0a0f0d"></i><i style="background:#101a15"></i><i style="background:#3ddc84"></i></span><span class="nm">Console</span></label>
+        <label class="theme-opt"><input type="radio" name="theme" value="system" {{if eq .Me.Theme "system"}}checked{{end}}><span class="sw"><i style="background:#f7f7f5"></i><i style="background:#0b0d12"></i><i style="background:#7c5cff"></i></span><span class="nm">Follow system</span></label>
+      </div>
+      <div><button class="btn">Use theme</button></div>
+    </form>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>Profile</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/account/profile">{{template "csrf" .CSRF}}
+      <label class="field">Display name<input class="input" name="display_name" value="{{.Me.DisplayName}}"></label>
+      <label class="field">Email<input class="input" type="email" name="email" value="{{.Me.Email}}"></label>
+      <div><button class="btn">Save</button></div>
+    </form>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>Password</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/account/password">{{template "csrf" .CSRF}}
+      <label class="field">Current password<input class="input" type="password" name="current" autocomplete="current-password" required></label>
+      <label class="field">New password<input class="input" type="password" name="password" autocomplete="new-password" minlength="10" required></label>
+      <label class="field">Confirm<input class="input" type="password" name="confirm" autocomplete="new-password" minlength="10" required></label>
+      <div><button class="btn">Change password</button></div>
+    </form>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>Two-factor</h2><span class="badge ok">{{icon "lock"}}on</span></div>
+    <div class="bd stack">
+      <p class="small muted">{{$d.Codes}} backup codes left.</p>
+      <form class="inline-form" method="post" action="{{.Base}}/account/codes">{{template "csrf" .CSRF}}<input class="input mono" name="code" inputmode="numeric" maxlength="6" placeholder="current code" required aria-label="Current code"><button class="btn">New backup codes</button></form>
+      <a class="btn" href="{{.Base}}/2fa/enroll?reset=1">{{icon "phone"}}Move to a new phone</a>
+    </div>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>Sessions</h2>{{if gt (len $d.Sessions) 1}}<form method="post" action="{{.Base}}/account/revoke_others">{{template "csrf" .CSRF}}<button class="btn ghost sm">Sign out others</button></form>{{end}}</div>
+    <div class="list">
+    {{range $d.Sessions}}
+      <div class="item">
+        <span class="faint">{{icon "monitor"}}</span>
+        <div class="grow"><b>{{device .UserAgent}}</b> {{if eq .ID $d.Current}}<span class="badge ok">this one</span>{{end}}<div class="small muted">{{.IP}} · active {{ago .LastSeenAt}}</div></div>
+        {{if ne .ID $d.Current}}<form method="post" action="{{$p.Base}}/account/revoke">{{template "csrf" $p.CSRF}}<input type="hidden" name="session" value="{{.ID}}"><button class="btn ghost sm">Sign out</button></form>{{end}}
+      </div>
+    {{end}}
+    </div>
+  </section>
+</div>
+{{end}}

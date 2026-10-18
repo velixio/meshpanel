@@ -1,0 +1,80 @@
+{{define "head"}}<!doctype html>
+<html lang="en" data-theme="{{.Theme}}" data-base="{{.Base}}" data-csrf="{{.CSRF}}"{{if .Me}} data-me="{{.Me.Username}}"{{end}}{{if .Brand.Accent}} style="--accent: {{.Brand.Accent}}; --accent-fg: {{.Brand.AccentFG}};"{{end}}>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"historyCacheSize":0,"refreshOnHistoryMiss":true}'>
+<title>{{if .Title}}{{.Title}} · {{end}}{{.Brand.Name}}</title>
+<link rel="icon" href="{{.Base}}/static/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="{{.Base}}/static/css/tokens.css">
+<link rel="stylesheet" href="{{.Base}}/static/css/app.css">
+<script src="{{.Base}}/static/js/htmx.min.js" defer></script>
+<script src="{{.Base}}/static/js/app.js" defer></script>
+<script src="{{.Base}}/static/js/editor.js" defer></script>
+</head>{{end}}
+
+{{define "mark"}}<span class="mark">{{if .Brand.Logo}}<img src="{{.Brand.Logo}}" alt="">{{else}}{{icon "mesh"}}{{end}}</span>{{end}}
+
+{{define "layout"}}{{template "head" .}}
+<body hx-boost="true">
+<div class="shell">
+  <aside class="side" aria-label="Main">
+    <a class="brand" href="{{.Base}}/">{{template "mark" .}}<span class="ellipsis">{{.Brand.Name}}</span></a>
+    <nav class="nav">
+      <a href="{{.Base}}/" class="{{if eq .Nav "overview"}}on{{end}}">{{icon "home"}}Overview{{if .PendingCount}}<span class="count" title="Waiting for approval">{{.PendingCount}}</span>{{end}}</a>
+      <a href="{{.Base}}/machines" class="{{if eq .Nav "machines"}}on{{end}}">{{icon "monitor"}}{{if has .Caps "read_machines"}}Machines{{else}}My devices{{end}}</a>
+      {{if has .Caps "read_users"}}<a href="{{.Base}}/users" class="{{if eq .Nav "users"}}on{{end}}">{{icon "users"}}Users</a>{{end}}
+      {{if or (has .Caps "generate_authkeys") (has .Caps "generate_own_authkeys")}}<a href="{{.Base}}/keys" class="{{if eq .Nav "keys"}}on{{end}}">{{icon "key"}}Keys</a>{{end}}
+      {{if or (has .Caps "read_policy") (has .Caps "read_network")}}<div class="nav-label">Network</div>{{end}}
+      {{if has .Caps "read_policy"}}<a href="{{.Base}}/access" class="{{if eq .Nav "access"}}on{{end}}">{{icon "shield"}}Access</a>{{end}}
+      {{if has .Caps "read_network"}}<a href="{{.Base}}/dns" class="{{if eq .Nav "dns"}}on{{end}}">{{icon "globe"}}DNS</a>{{end}}
+      <div class="nav-label">Team</div>
+      {{if has .Caps "configure_iam"}}<a href="{{.Base}}/people" class="{{if eq .Nav "people"}}on{{end}}">{{icon "badge"}}People</a>{{end}}
+      <a href="{{.Base}}/alerts" class="{{if eq .Nav "alerts"}}on{{end}}">{{icon "bell"}}Alerts</a>
+      {{if has .Caps "read_audit"}}<a href="{{.Base}}/audit" class="{{if eq .Nav "audit"}}on{{end}}">{{icon "scroll"}}Audit log</a>{{end}}
+      {{if has .Caps "configure_iam"}}<a href="{{.Base}}/settings" class="{{if eq .Nav "settings"}}on{{end}}">{{icon "sliders"}}Settings</a>{{end}}
+    </nav>
+    <div class="foot">
+      <a class="me" href="{{.Base}}/account">
+        <span class="avatar">{{initials .Me.Name}}</span>
+        <span class="who"><b>{{.Me.Name}}</b><span>{{.Me.Role}}</span></span>
+      </a>
+      <form method="post" action="{{.Base}}/logout" hx-boost="false">
+        <input type="hidden" name="_csrf" value="{{.CSRF}}">
+        <button class="btn ghost block" style="justify-content:flex-start">{{icon "logout"}}Sign out</button>
+      </form>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <button class="btn ghost icon-only menu-btn" data-nav-toggle aria-label="Menu">{{icon "menu"}}</button>
+      <button class="search-btn" data-palette type="button">{{icon "search"}}<span>Search…</span><kbd>Ctrl K</kbd></button>
+      <div class="right">
+        <span class="health" data-health data-ws-dot title="Live">
+          <span class="dot {{if .Healthy}}on{{else}}danger{{end}}"></span><span class="txt">{{if .Healthy}}headscale online{{else}}headscale unreachable{{end}}</span>
+        </span>
+      </div>
+    </header>
+    <main class="content">
+      {{if not .Healthy}}<div class="banner danger mt" role="alert">{{icon "alert"}}<div><b>headscale is not responding.</b> Showing the last known state. {{.HSError}}</div></div>{{end}}
+      {{template "content" .}}
+    </main>
+  </div>
+</div>
+{{template "flash" .}}
+</body>
+</html>{{end}}
+
+{{define "auth"}}{{template "head" .}}
+<body>
+<main class="auth">
+  <div class="box">
+    {{template "mark" .}}
+    {{template "auth-page" .}}
+    <p class="foot">{{.Brand.Name}}{{if ne .Brand.Name "meshpanel"}} · secured by meshpanel{{end}}</p>
+  </div>
+</main>
+{{template "flash" .}}
+</body>
+</html>{{end}}

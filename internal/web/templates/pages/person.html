@@ -1,0 +1,63 @@
+{{define "content"}}{{$d := .Data}}{{$a := $d.Person}}{{$p := .}}
+<div class="page-head">
+  <div><div class="crumbs"><a href="{{.Base}}/people">People</a>{{icon "chev"}}</div>
+    <h1 class="row"><span class="avatar">{{initials $a.Name}}</span>{{$a.Name}} {{if $a.Disabled}}<span class="badge danger">disabled</span>{{end}}</h1>
+    <p class="sub">{{$a.Username}} · joined {{date $a.CreatedAt}} · last sign-in {{ago $a.LastLoginAt}}</p></div>
+</div>
+<div class="split">
+  <div class="stack lg">
+    <section class="card">
+      <div class="hd"><h2>Role</h2></div>
+      <form class="bd stack" method="post" action="{{.Base}}/people/{{$a.ID}}/role">{{template "csrf" .CSRF}}
+        <div class="grid g2">
+        {{range $d.Roles}}<label class="check card flat" style="padding:10px"><input type="radio" name="role" value="{{.}}" {{if eq . $a.Role}}checked{{end}}><span><b>{{.}}</b><span class="help">{{roleHelp .}}</span></span></label>{{end}}
+        </div>
+        <div><button class="btn">Save role</button></div>
+      </form>
+    </section>
+    <section class="card">
+      <div class="hd"><h2>Extra permissions</h2><span class="hint">On top of the role. You can only grant what you have.</span></div>
+      <form method="post" action="{{.Base}}/people/{{$a.ID}}/caps">{{template "csrf" .CSRF}}
+        <div class="bd grid g2">
+        {{range $d.AllCaps}}<label class="check"><input type="checkbox" name="cap" value="{{.Name}}" {{if $d.Extra.Has .Cap}}checked{{end}} {{if not ($p.Caps.Has .Cap)}}disabled{{end}}><span><span class="mono small">{{.Name}}</span>{{if $d.Caps.Has .Cap}} <span class="badge ok">has</span>{{end}}<span class="help">{{.Help}}</span></span></label>{{end}}
+        </div>
+        <div class="ft"><button class="btn primary">Save permissions</button></div>
+      </form>
+    </section>
+  </div>
+  <div class="stack lg">
+    <section class="card">
+      <div class="hd"><h2>headscale user</h2></div>
+      <form class="bd stack" method="post" action="{{.Base}}/people/{{$a.ID}}/hsuser">{{template "csrf" .CSRF}}
+        <select class="input" name="hs_user">
+          <option value="" {{if not $a.HSUser}}selected{{end}}>not linked</option>
+          <option value="_new">create "{{$a.Username}}"</option>
+          {{range $d.HSUsers}}<option value="{{.Name}}" {{if eq .Name $a.HSUser}}selected{{end}}>{{.Name}}</option>{{end}}
+        </select>
+        <p class="small muted">Devices this person adds register under this user, and members only see this user's devices.</p>
+        <button class="btn">Save</button>
+      </form>
+    </section>
+    <section class="card">
+      <div class="hd"><h2>Security</h2></div>
+      <div class="bd stack">
+        <div class="row between"><span>Two-factor</span>{{if $a.TOTPEnabled}}<span class="badge ok">on · {{$d.Codes}} backup codes</span>{{else}}<span class="badge warn">not set up</span>{{end}}</div>
+        <div class="row between"><span>Telegram</span>{{if $d.Telegram}}<span class="badge info">{{$d.Telegram.Name}}</span>{{else}}<span class="faint">not linked</span>{{end}}</div>
+        <div class="row between"><span>Active sessions</span><span>{{len $d.Sessions}}</span></div>
+        <hr style="margin:4px 0">
+        <form method="post" action="{{.Base}}/people/{{$a.ID}}/sessions">{{template "csrf" .CSRF}}<button class="btn block">{{icon "logout"}}Sign out everywhere</button></form>
+        <form method="post" action="{{.Base}}/people/{{$a.ID}}/reset2fa" data-confirm="Reset two-factor for {{$a.Username}}? They must set it up again at next sign-in.">{{template "csrf" .CSRF}}<button class="btn block">{{icon "lock"}}Reset two-factor</button></form>
+        <details><summary class="btn block">{{icon "key"}}Set a new password</summary>
+          <form class="stack mt" method="post" action="{{.Base}}/people/{{$a.ID}}/password">{{template "csrf" .CSRF}}<input class="input" type="password" name="password" minlength="10" autocomplete="new-password" placeholder="At least 10 characters" required><button class="btn">Set password</button></form>
+        </details>
+        {{if not $d.IsMe}}
+        <hr style="margin:4px 0">
+        {{if $a.Disabled}}<form method="post" action="{{.Base}}/people/{{$a.ID}}/enable">{{template "csrf" .CSRF}}<button class="btn ok block">Enable account</button></form>
+        {{else}}<form method="post" action="{{.Base}}/people/{{$a.ID}}/disable" data-confirm="Disable {{$a.Username}}? They are signed out immediately.">{{template "csrf" .CSRF}}<button class="btn block">{{icon "power"}}Disable account</button></form>{{end}}
+        <form method="post" action="{{.Base}}/people/{{$a.ID}}/delete" data-confirm="Delete {{$a.Username}}'s panel account? Their devices stay.">{{template "csrf" .CSRF}}<button class="btn danger block">{{icon "trash"}}Delete account</button></form>
+        {{end}}
+      </div>
+    </section>
+  </div>
+</div>
+{{end}}

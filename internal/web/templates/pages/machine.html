@@ -1,0 +1,104 @@
+{{define "content"}}{{$d := .Data}}{{$n := $d.Node}}{{$p := .}}
+<div class="page-head">
+  <div>
+    <div class="crumbs"><a href="{{.Base}}/machines">Machines</a>{{icon "chev"}}</div>
+    <h1 class="row">{{$n.DisplayName}} {{if $n.Online}}<span class="badge ok"><span class="dot on"></span>Online</span>{{else}}<span class="badge"><span class="dot"></span>Offline</span>{{end}}</h1>
+    <p class="sub">{{if $n.IsTagged}}Tagged device{{else}}Owned by <b>{{$n.UserName}}</b>{{if $d.Owner}} ({{$d.Owner.Name}}){{end}}{{end}}</p>
+  </div>
+  <div class="actions">
+    <form method="post" action="{{.Base}}/machines/{{$n.ID}}/watch">{{template "csrf" .CSRF}}{{if $d.Watching}}<input type="hidden" name="off" value="1"><button class="btn">{{icon "bell"}}Watching</button>{{else}}<button class="btn">{{icon "eye"}}Watch</button>{{end}}</form>
+  </div>
+</div>
+
+<div class="split" id="m-body" data-live="node changed" hx-get="{{.Base}}/machines/{{$n.ID}}" hx-trigger="mp-live" hx-select="#m-body" hx-swap="outerHTML">
+  <div class="stack lg">
+    <section class="card">
+      <div class="hd"><h2>Details</h2></div>
+      <div class="bd">
+        <dl class="kv">
+          <dt>Tailscale IPs</dt><dd class="mono">{{range $n.IPAddresses}}<div class="row">{{.}} <button class="btn ghost sm icon-only" data-copy="{{.}}" aria-label="Copy">{{icon "copy"}}</button></div>{{end}}</dd>
+          <dt>Hostname</dt><dd class="mono">{{$n.Name}}</dd>
+          <dt>Last seen</dt><dd>{{if $n.Online}}Now{{else}}{{date $n.LastSeen}}{{end}}</dd>
+          <dt>Registered</dt><dd>{{date $n.CreatedAt}} <span class="faint small">via {{lower $n.RegisterMethod}}</span></dd>
+          <dt>Key expiry</dt><dd>{{if $n.Expiry}}{{date $n.Expiry}} <span class="muted">({{until $n.Expiry}})</span>{{else}}Never{{end}}</dd>
+          {{if $n.Tags}}<dt>Tags</dt><dd class="row">{{template "tags" $n.Tags}}</dd>{{end}}
+          <dt>Node key</dt><dd class="mono small faint ellipsis">{{$n.NodeKey}}</dd>
+        </dl>
+      </div>
+    </section>
+
+    {{if $n.AvailableRoutes}}
+    <section class="card">
+      <div class="hd"><h2>Routes</h2><span class="hint">Advertised by the device. Only approved routes are active.</span></div>
+      <form method="post" action="{{.Base}}/machines/{{$n.ID}}/routes">
+        {{template "csrf" .CSRF}}
+        <div class="list">
+        {{range $n.AvailableRoutes}}
+          <label class="item check">
+            <input type="checkbox" name="route" value="{{.}}" {{if contains $n.ApprovedRoutes .}}checked{{end}} {{if not $d.CanRoutes}}disabled{{end}}>
+            <span class="grow"><span class="mono">{{.}}</span> {{if eq (risk .) "exit"}}<span class="badge warn">{{icon "exit"}}exit node: routes all internet traffic</span>{{else if eq (risk .) "wide"}}<span class="badge warn">wide subnet</span>{{end}}</span>
+            {{if index $d.PendingSet .}}<span class="badge warn">pending</span>{{else}}<span class="badge ok">approved</span>{{end}}
+          </label>
+        {{end}}
+        </div>
+        {{if $d.CanRoutes}}<div class="ft"><button class="btn primary">Save routes</button></div>{{end}}
+      </form>
+    </section>
+    {{end}}
+
+    {{if and (not $n.IsTagged) $d.CanManage}}
+    <section class="card">
+      <div class="hd"><h2>Move to another user</h2></div>
+      <div class="bd stack">
+        <p class="muted">headscale can't move a device between users directly. To re-register it under someone else: expire its key below, then that person signs in on the device and an approver picks their user.</p>
+        {{if $d.LoginCmd}}<div class="secret"><code>{{$d.LoginCmd}}</code><button class="btn ghost sm icon-only" data-copy="{{$d.LoginCmd}}" aria-label="Copy">{{icon "copy"}}</button></div>{{end}}
+      </div>
+    </section>
+    {{end}}
+  </div>
+
+  <div class="stack lg">
+    {{if $d.CanManage}}
+    <section class="card">
+      <div class="hd"><h2>Rename</h2></div>
+      <form class="bd inline-form" method="post" action="{{.Base}}/machines/{{$n.ID}}/rename">
+        {{template "csrf" .CSRF}}
+        <input class="input mono" name="name" value="{{$n.DisplayName}}" pattern="[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?" required aria-label="New name">
+        <button class="btn">Rename</button>
+      </form>
+    </section>
+    {{end}}
+
+    {{if and $d.CanTags $n.IsTagged}}
+    <section class="card">
+      <div class="hd"><h2>Tags</h2></div>
+      <form class="bd stack" method="post" action="{{.Base}}/machines/{{$n.ID}}/tags">
+        {{template "csrf" .CSRF}}
+        <input class="input mono" name="tags" value="{{join $n.Tags ", "}}" placeholder="tag:server, tag:prod">
+        <p class="small muted">Tags decide what this machine can reach through the access policy.</p>
+        <button class="btn">Save tags</button>
+      </form>
+    </section>
+    {{end}}
+
+    {{if $d.CanManage}}
+    <section class="card">
+      <div class="hd"><h2>Key</h2></div>
+      <div class="bd stack">
+        <form method="post" action="{{.Base}}/machines/{{$n.ID}}/expiry">{{template "csrf" .CSRF}}
+          {{if $n.Expiry}}<input type="hidden" name="expiry" value="off"><button class="btn block">{{icon "clock"}}Turn off key expiry</button>
+          {{else}}<input type="hidden" name="expiry" value="on"><button class="btn block">{{icon "clock"}}Turn on key expiry</button>{{end}}
+        </form>
+        <form method="post" action="{{.Base}}/machines/{{$n.ID}}/expire" data-confirm="Expire the key for {{$n.DisplayName}}? It disconnects until someone signs in on it again.">{{template "csrf" .CSRF}}
+          <button class="btn block">{{icon "power"}}Expire key now</button>
+        </form>
+        <hr style="margin:4px 0">
+        <form method="post" action="{{.Base}}/machines/{{$n.ID}}/delete" data-confirm="Delete {{$n.DisplayName}}? It is removed from the network immediately.">{{template "csrf" .CSRF}}
+          <button class="btn danger block">{{icon "trash"}}Delete machine</button>
+        </form>
+      </div>
+    </section>
+    {{end}}
+  </div>
+</div>
+{{end}}

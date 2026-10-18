@@ -38,7 +38,7 @@ type Node struct {
 	Tags            []string   `json:"tags"`
 }
 
-func (n *Node) DisplayName() string {
+func (n Node) DisplayName() string {
 	if n.GivenName != "" {
 		return n.GivenName
 	}
@@ -46,12 +46,12 @@ func (n *Node) DisplayName() string {
 }
 
 // IsTagged follows headscale's tags-XOR-user rule.
-func (n *Node) IsTagged() bool {
+func (n Node) IsTagged() bool {
 	return len(n.Tags) > 0 || (n.User != nil && n.User.ID == TaggedDevicesUserID)
 }
 
 // UserName is the owning headscale user, or "" for tagged nodes.
-func (n *Node) UserName() string {
+func (n Node) UserName() string {
 	if n.IsTagged() || n.User == nil {
 		return ""
 	}
@@ -60,7 +60,7 @@ func (n *Node) UserName() string {
 
 func isExitRoute(r string) bool { return r == "0.0.0.0/0" || r == "::/0" }
 
-func (n *Node) IsExitNodeAdvertised() bool {
+func (n Node) IsExitNodeAdvertised() bool {
 	for _, r := range n.AvailableRoutes {
 		if isExitRoute(r) {
 			return true
@@ -69,7 +69,7 @@ func (n *Node) IsExitNodeAdvertised() bool {
 	return false
 }
 
-func (n *Node) IsExitNodeApproved() bool {
+func (n Node) IsExitNodeApproved() bool {
 	for _, r := range n.ApprovedRoutes {
 		if isExitRoute(r) {
 			return true
@@ -79,7 +79,7 @@ func (n *Node) IsExitNodeApproved() bool {
 }
 
 // PendingRoutes are advertised but not approved.
-func (n *Node) PendingRoutes() []string {
+func (n Node) PendingRoutes() []string {
 	ok := map[string]bool{}
 	for _, r := range n.ApprovedRoutes {
 		ok[r] = true
@@ -109,7 +109,7 @@ func RouteRisk(r string) string {
 	return ""
 }
 
-func (n *Node) KeyExpired(now time.Time) bool {
+func (n Node) KeyExpired(now time.Time) bool {
 	return n.Expiry != nil && !n.Expiry.IsZero() && n.Expiry.Before(now)
 }
 

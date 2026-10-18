@@ -1,0 +1,38 @@
+{{define "content"}}{{$d := .Data}}
+<div class="page-head"><div><h1>DNS</h1><p class="sub">MagicDNS names and resolvers pushed to every device.</p></div></div>
+{{if $d.WhyNot}}<div class="banner info">{{icon "info"}}<div>{{$d.WhyNot}}</div></div><div class="mt"></div>{{end}}
+{{if $d.Error}}<div class="banner danger">{{icon "alert"}}<div><b>Not saved.</b> {{$d.Error}}</div></div><div class="mt"></div>{{end}}
+{{with $d.DNS}}
+<form method="post" action="{{$.Base}}/dns" data-confirm="Saving restarts headscale. Devices reconnect within seconds. Continue?">
+  {{template "csrf" $.CSRF}}
+  <fieldset {{if not $d.Writable}}disabled{{end}}>
+  <div class="grid g2">
+    <section class="card">
+      <div class="hd"><h2>MagicDNS</h2></div>
+      <div class="bd stack">
+        <label class="check"><input type="checkbox" name="magic_dns" {{if .MagicDNS}}checked{{end}}><span>Enable MagicDNS<span class="help">Devices reach each other by name, like <code>laptop.{{if .BaseDomain}}{{.BaseDomain}}{{else}}your.domain{{end}}</code>.</span></span></label>
+        <label class="field">Tailnet domain <span class="help">Must differ from headscale's own domain.</span><input class="input mono" name="base_domain" value="{{.BaseDomain}}" placeholder="ts.example.net"></label>
+        <label class="check"><input type="checkbox" name="override_local" {{if .OverrideLocal}}checked{{end}}><span>Override local DNS<span class="help">Devices use the nameservers below instead of their own.</span></span></label>
+      </div>
+    </section>
+    <section class="card">
+      <div class="hd"><h2>Nameservers</h2></div>
+      <div class="bd stack">
+        <label class="field">Global <span class="help">One per line: IP addresses or https:// DoH URLs. Order matters.</span><textarea class="input" name="global" rows="4" placeholder="1.1.1.1">{{$d.Global}}</textarea></label>
+        <label class="field">Split DNS <span class="help">One domain per line: <code>corp.example: 10.0.0.53, 10.0.0.54</code></span><textarea class="input" name="split" rows="3">{{$d.Split}}</textarea></label>
+      </div>
+    </section>
+    <section class="card">
+      <div class="hd"><h2>Search domains</h2></div>
+      <div class="bd"><textarea class="input" name="search" rows="3" placeholder="corp.example" aria-label="Search domains">{{$d.Search}}</textarea></div>
+    </section>
+    <section class="card">
+      <div class="hd"><h2>Extra records</h2>{{if .ExtraPath}}<span class="hint mono">{{.ExtraPath}}</span>{{end}}</div>
+      <div class="bd stack"><textarea class="input" name="extra" rows="4" placeholder="git.ts.example.net A 100.64.0.5" aria-label="Extra records">{{$d.Extra}}</textarea><p class="small muted">One per line: <code>name type address</code>, type A or AAAA.</p></div>
+    </section>
+  </div>
+  {{if $d.Writable}}<div class="row mt-lg" style="justify-content:flex-end"><button class="btn primary">Save and restart headscale</button></div>{{end}}
+  </fieldset>
+</form>
+{{end}}
+{{end}}

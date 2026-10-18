@@ -1,0 +1,10 @@
+{{define "auth-page"}}{{$f := .Data}}
+<div class="done-mark">{{icon "check"}}</div>
+<h1>Two-factor is on</h1>
+<p class="lead">Save these backup codes somewhere safe. Each works once if you lose your phone. They won't be shown again.</p>
+<div class="card">
+  <div class="codes" id="codes">{{range $f.Codes}}<span>{{.}}</span>{{end}}</div>
+  <button type="button" class="btn block" data-copy="{{join $f.Codes "\n"}}">{{icon "copy"}}Copy codes</button>
+  <a class="btn primary lg block" href="{{$f.Next}}">I saved them, continue</a>
+</div>
+{{end}}

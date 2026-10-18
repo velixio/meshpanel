@@ -1,0 +1,54 @@
+{{define "content"}}{{$d := .Data}}{{$p := .}}
+<div class="page-head">
+  <div><h1>{{if has .Caps "read_machines"}}Machines{{else}}My devices{{end}}</h1><p class="sub">{{$d.Counts.all}} total · {{$d.Counts.online}} online</p></div>
+  <div class="actions">
+    {{if or (has .Caps "generate_authkeys") (has .Caps "generate_own_authkeys")}}<a class="btn" href="{{.Base}}/keys">{{icon "key"}}Pre-auth key</a>{{end}}
+    {{if has .Caps "approve_devices"}}
+    <details data-menu class="req" style="padding:0;border:0">
+      <summary class="btn primary">{{icon "plus"}}Add device</summary>
+      <div class="menu" style="min-width:320px;padding:12px">
+        <form method="post" action="{{.Base}}/machines/register" class="stack">
+          {{template "csrf" .CSRF}}
+          <label class="field">Link or ID from the device<input class="input mono" name="auth_id" placeholder="https://…/register/hskey-authreq-…" required></label>
+          <label class="field">Belongs to user<select class="input" name="user">{{range .Data.Users}}<option>{{.Name}}</option>{{end}}</select></label>
+          <button class="btn primary">Register device</button>
+          <p class="small muted">Usually you don't need this: people open the link on their device, sign in, and you approve.</p>
+        </form>
+      </div>
+    </details>
+    {{end}}
+  </div>
+</div>
+
+<div class="card">
+  <div class="hd" style="flex-wrap:wrap">
+    <div class="chips">
+      <button class="chip on" data-chip="all" data-chip-for="#mt">All <span class="n">{{$d.Counts.all}}</span></button>
+      <button class="chip" data-chip="online" data-chip-for="#mt">Online <span class="n">{{or $d.Counts.online 0}}</span></button>
+      <button class="chip" data-chip="offline" data-chip-for="#mt">Offline <span class="n">{{or $d.Counts.offline 0}}</span></button>
+      {{if $d.Counts.routes}}<button class="chip" data-chip="routes" data-chip-for="#mt">Routes pending <span class="n">{{$d.Counts.routes}}</span></button>{{end}}
+      {{if $d.Counts.exit}}<button class="chip" data-chip="exit" data-chip-for="#mt">Exit nodes <span class="n">{{$d.Counts.exit}}</span></button>{{end}}
+      {{if or $d.Counts.expiring $d.Counts.expired}}<button class="chip" data-chip="expiring" data-chip-for="#mt">Expiring <span class="n">{{add (or $d.Counts.expiring 0) (or $d.Counts.expired 0)}}</span></button>{{end}}
+      {{if $d.Counts.tagged}}<button class="chip" data-chip="tagged" data-chip-for="#mt">Tagged <span class="n">{{$d.Counts.tagged}}</span></button>{{end}}
+    </div>
+    <input class="input" style="max-width:260px" type="search" placeholder="Filter by name, user, IP, tag…" data-filter="#mt" aria-label="Filter machines">
+  </div>
+  <div id="mt-wrap" class="table-wrap" data-live="node changed" hx-get="{{.Base}}/machines" hx-trigger="mp-live" hx-select="#mt-wrap" hx-swap="outerHTML">
+  <table class="t" id="mt">
+    <thead><tr><th>Machine</th><th class="hide-sm">Address</th><th class="hide-sm">Tags & routes</th><th>Status</th><th class="hide-sm">Key</th></tr></thead>
+    <tbody>
+    {{range $d.Rows}}
+      <tr class="clickable" data-href="{{$p.Base}}/machines/{{.ID}}" data-search="{{.Search}}" data-state="{{.State}}">
+        <td><div class="name"><span class="faint">{{template "nodeIcon" .Node}}</span><div class="ellipsis"><a href="{{$p.Base}}/machines/{{.ID}}"><b>{{.DisplayName}}</b></a><div class="sub">{{if .IsTagged}}tagged device{{else}}{{.UserName}}{{if .Owner}} · {{.Owner}}{{end}}{{end}}</div></div></div></td>
+        <td class="hide-sm mono small">{{ip .Node}}</td>
+        <td class="hide-sm"><div class="row">{{template "tags" .Tags}}{{template "routeBadges" .Node}}</div></td>
+        <td class="nowrap">{{template "statusText" .Node}}</td>
+        <td class="hide-sm nowrap small">{{if .Expiry}}{{if .KeyExpired now}}<span class="badge danger">expired</span>{{else}}<span class="muted">{{until .Expiry}}</span>{{end}}{{else}}<span class="faint">no expiry</span>{{end}}</td>
+      </tr>
+    {{end}}
+    </tbody>
+  </table>
+  <div id="mt-empty" class="empty {{if $d.Rows}}hidden{{end}}">{{icon "monitor"}}<b>No machines here</b><span class="small">{{if $d.Rows}}Nothing matches this filter.{{else}}Open the Tailscale app, set the server to {{if .PublicURL}}<code>{{.PublicURL}}</code>{{else}}your headscale URL{{end}} and log in.{{end}}</span></div>
+  </div>
+</div>
+{{end}}
