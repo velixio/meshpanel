@@ -1,0 +1,13 @@
+{{define "auth-page"}}{{$f := .Data}}
+<h1>Set up two-factor</h1>
+<p class="lead">Scan this with an authenticator app (Google Authenticator, 1Password, Authy…).</p>
+<form class="card" method="post" action="{{.Base}}/2fa/enroll" hx-boost="false">
+  {{template "csrf" .CSRF}}
+  <input type="hidden" name="next" value="{{$f.Next}}">
+  <div class="qr" style="margin:0 auto"><img src="{{$f.QR}}" alt="QR code for your authenticator app"></div>
+  <div class="small muted" style="text-align:center">Can't scan? Enter this key:</div>
+  <div class="secret"><code>{{$f.Secret}}</code><button type="button" class="btn ghost sm icon-only" data-copy="{{$f.Secret}}" aria-label="Copy">{{icon "copy"}}</button></div>
+  <label class="field">Code from the app<input class="input code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required></label>
+  <button class="btn primary lg block">Turn on two-factor</button>
+</form>
+{{end}}

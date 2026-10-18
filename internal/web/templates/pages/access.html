@@ -1,0 +1,137 @@
+{{define "content"}}{{$d := .Data}}{{$p := .}}
+<div class="page-head">
+  <div><h1>Access policy</h1><p class="sub">Who can reach what. headscale mode: <b>{{$d.Mode}}</b>.</p></div>
+</div>
+{{if $d.WhyNot}}<div class="banner info">{{icon "info"}}<div>{{$d.WhyNot}}</div></div><div class="mt"></div>{{end}}
+
+{{if $d.Review}}
+<section class="card">
+  <div class="hd"><h2>Review changes</h2>{{if $d.CheckErr}}<span class="badge danger">headscale rejected it</span>{{else if $d.NoChanges}}<span class="badge">no changes</span>{{else}}<span class="badge ok">{{icon "check"}}valid</span>{{end}}</div>
+  <div class="bd stack">
+    {{if $d.CheckErr}}<div class="banner danger">{{icon "alert"}}<div><b>Not applied.</b> {{$d.CheckErr}}</div></div>{{end}}
+    <div class="diff">{{range $d.Diff}}<div class="{{.Kind}}">{{if eq .Kind "add"}}+ {{else if eq .Kind "del"}}- {{else}}  {{end}}{{.Text}}</div>{{end}}</div>
+  </div>
+  <form method="post" action="{{.Base}}/access">{{template "csrf" .CSRF}}
+    <input type="hidden" name="policy" value="{{$d.Proposed}}">
+    <div class="ft">
+      <a class="btn ghost" href="{{.Base}}/access">Discard</a>
+      <button class="btn" name="op" value="review" formaction="{{.Base}}/access?tab=editor" hidden></button>
+      {{if and (not $d.CheckErr) (not $d.NoChanges)}}<button class="btn primary" name="op" value="apply">{{icon "check"}}Apply policy</button>{{end}}
+    </div>
+  </form>
+</section>
+<div class="mt-lg"></div>
+{{end}}
+
+<div class="tabs">
+  <a href="{{.Base}}/access?tab=visual" class="{{if eq $d.Tab "visual"}}on{{end}}">Visual</a>
+  <a href="{{.Base}}/access?tab=editor" class="{{if eq $d.Tab "editor"}}on{{end}}">Editor</a>
+</div>
+
+{{if eq $d.Tab "editor"}}
+<form method="post" action="{{.Base}}/access" class="stack">{{template "csrf" .CSRF}}
+  <div class="editor"><div class="gutter"></div><div class="area"><pre aria-hidden="true"></pre><textarea name="policy" spellcheck="false" aria-label="Policy" {{if not $d.Writable}}readonly{{end}}>{{if $d.Review}}{{$d.Proposed}}{{else}}{{$d.Policy}}{{end}}</textarea></div></div>
+  {{if $d.Writable}}<div class="row between"><span class="small muted">HuJSON: comments and trailing commas are fine. <kbd>Ctrl S</kbd> reviews.</span><button class="btn primary" name="op" value="review" data-default>Review changes</button></div>{{end}}
+</form>
+{{else}}
+  {{if $d.ParseErr}}<div class="banner danger">{{icon "alert"}}<div>{{$d.ParseErr}} Use the editor tab to fix it.</div></div>
+  {{else}}
+  {{if $d.Writable}}<p class="small muted">Visual changes rewrite the policy as plain JSON, so comments are removed. Every change is reviewed before it applies.</p><div class="mt"></div>{{end}}
+  <div class="grid g2">
+    <section class="card">
+      <div class="hd"><h2>Access rules</h2><span class="hint">{{len $d.View.ACLs}} rules</span></div>
+      <div class="list">
+      {{range $d.View.ACLs}}
+        <div class="item">
+          <div class="grow small"><span class="badge {{if eq .Action "accept"}}ok{{end}}">{{.Action}}</span> <span class="mono">{{join .Src ", "}}</span> → <span class="mono">{{join .Dst ", "}}</span>{{if .Proto}} <span class="faint">({{.Proto}})</span>{{end}}</div>
+          {{if $d.Writable}}<form method="post" action="{{$p.Base}}/access">{{template "csrf" $p.CSRF}}<input type="hidden" name="index" value="{{.Index}}"><button class="btn ghost sm icon-only" name="op" value="v:acl_delete" aria-label="Remove">{{icon "x"}}</button></form>{{end}}
+        </div>
+      {{else}}<div class="empty small">No rules. With no rules, headscale allows all traffic.</div>{{end}}
+      </div>
+      {{if $d.Writable}}
+      <form class="ft" style="justify-content:stretch;flex-wrap:wrap" method="post" action="{{.Base}}/access">{{template "csrf" .CSRF}}
+        <input class="input mono" name="src" placeholder="from: group:eng, tag:ci" style="flex:1;min-width:140px" required>
+        <input class="input mono" name="dst" placeholder="to: tag:server:22, *:*" style="flex:1;min-width:140px" required>
+        <button class="btn" name="op" value="v:acl_add">{{icon "plus"}}Add rule</button>
+      </form>
+      {{end}}
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>Groups</h2></div>
+      <div class="list">
+      {{range $d.View.Groups}}
+        <div class="item"><div class="grow"><b class="mono small">{{.Name}}</b><div class="small muted">{{join .Members ", "}}</div></div>
+          {{if $d.Writable}}<form method="post" action="{{$p.Base}}/access">{{template "csrf" $p.CSRF}}<input type="hidden" name="name" value="{{.Name}}"><button class="btn ghost sm icon-only" name="op" value="v:group_delete" aria-label="Remove">{{icon "x"}}</button></form>{{end}}
+        </div>
+      {{else}}<div class="empty small">No groups</div>{{end}}
+      </div>
+      {{if $d.Writable}}
+      <form class="ft" style="justify-content:stretch;flex-wrap:wrap" method="post" action="{{.Base}}/access">{{template "csrf" .CSRF}}
+        <input class="input mono" name="name" placeholder="group:eng" style="flex:1;min-width:120px" required>
+        <input class="input" name="members" placeholder="ravi@, anna@" style="flex:2;min-width:140px">
+        <button class="btn" name="op" value="v:group_set">Save group</button>
+      </form>
+      {{end}}
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>Tag owners</h2><span class="hint">Who may apply each tag</span></div>
+      <div class="list">
+      {{range $d.View.TagOwners}}
+        <div class="item"><div class="grow"><span class="badge accent tag">{{.Name}}</span> <span class="small muted">{{join .Members ", "}}</span></div>
+          {{if $d.Writable}}<form method="post" action="{{$p.Base}}/access">{{template "csrf" $p.CSRF}}<input type="hidden" name="name" value="{{.Name}}"><button class="btn ghost sm icon-only" name="op" value="v:tagowner_delete" aria-label="Remove">{{icon "x"}}</button></form>{{end}}
+        </div>
+      {{else}}<div class="empty small">No tags defined</div>{{end}}
+      </div>
+      {{if $d.Writable}}
+      <form class="ft" style="justify-content:stretch;flex-wrap:wrap" method="post" action="{{.Base}}/access">{{template "csrf" .CSRF}}
+        <input class="input mono" name="name" placeholder="tag:server" style="flex:1;min-width:120px" required>
+        <input class="input" name="members" placeholder="group:ops, anna@" style="flex:2;min-width:140px">
+        <button class="btn" name="op" value="v:tagowner_set">Save tag</button>
+      </form>
+      {{end}}
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>Hosts</h2><span class="hint">Names for IPs and subnets</span></div>
+      <div class="list">
+      {{range $d.View.Hosts}}
+        <div class="item"><div class="grow"><b class="mono small">{{.Name}}</b> <span class="small muted mono">{{index .Members 0}}</span></div>
+          {{if $d.Writable}}<form method="post" action="{{$p.Base}}/access">{{template "csrf" $p.CSRF}}<input type="hidden" name="name" value="{{.Name}}"><button class="btn ghost sm icon-only" name="op" value="v:host_delete" aria-label="Remove">{{icon "x"}}</button></form>{{end}}
+        </div>
+      {{else}}<div class="empty small">No hosts</div>{{end}}
+      </div>
+      {{if $d.Writable}}
+      <form class="ft" style="justify-content:stretch;flex-wrap:wrap" method="post" action="{{.Base}}/access">{{template "csrf" .CSRF}}
+        <input class="input mono" name="name" placeholder="office-lan" style="flex:1;min-width:120px" required>
+        <input class="input mono" name="value" placeholder="192.168.1.0/24" style="flex:1;min-width:120px" required>
+        <button class="btn" name="op" value="v:host_set">Save host</button>
+      </form>
+      {{end}}
+    </section>
+
+    <section class="card" style="grid-column:1/-1">
+      <div class="hd"><h2>SSH rules</h2><span class="hint">Tailscale SSH access</span></div>
+      <div class="list">
+      {{range $d.View.SSH}}
+        <div class="item">
+          <div class="grow small"><span class="badge {{if eq .Action "check"}}warn{{else}}ok{{end}}">{{.Action}}</span> <span class="mono">{{join .Src ", "}}</span> → <span class="mono">{{join .Dst ", "}}</span> as <span class="mono">{{join .Users ", "}}</span></div>
+          {{if $d.Writable}}<form method="post" action="{{$p.Base}}/access">{{template "csrf" $p.CSRF}}<input type="hidden" name="index" value="{{.Index}}"><button class="btn ghost sm icon-only" name="op" value="v:ssh_delete" aria-label="Remove">{{icon "x"}}</button></form>{{end}}
+        </div>
+      {{else}}<div class="empty small">No SSH rules</div>{{end}}
+      </div>
+      {{if $d.Writable}}
+      <form class="ft" style="justify-content:stretch;flex-wrap:wrap" method="post" action="{{.Base}}/access">{{template "csrf" .CSRF}}
+        <select class="input" name="action" style="width:auto"><option value="accept">accept</option><option value="check">check (needs approval)</option></select>
+        <input class="input mono" name="src" placeholder="from: group:ops" style="flex:1;min-width:120px" required>
+        <input class="input mono" name="dst" placeholder="to: tag:server" style="flex:1;min-width:120px" required>
+        <input class="input mono" name="users" placeholder="as: root, autogroup:nonroot" style="flex:1;min-width:120px">
+        <button class="btn" name="op" value="v:ssh_add">{{icon "plus"}}Add SSH rule</button>
+      </form>
+      {{end}}
+    </section>
+  </div>
+  {{end}}
+{{end}}
+{{end}}

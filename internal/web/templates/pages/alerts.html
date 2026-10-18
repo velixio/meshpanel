@@ -1,0 +1,92 @@
+{{define "content"}}{{$d := .Data}}{{$p := .}}
+<div class="page-head"><div><h1>Alerts</h1><p class="sub">Watch devices and users. Alerts arrive on Telegram and in the feed below.</p></div></div>
+<div class="split">
+  <div class="stack lg">
+    <section class="card">
+      <div class="hd"><h2>Alert rules</h2></div>
+      <div class="list">
+      {{range $d.Rules}}
+        <div class="item">
+          <span class="faint">{{if eq .SubjectType "node"}}{{icon "monitor"}}{{else if eq .SubjectType "user"}}{{icon "user"}}{{else if eq .SubjectType "tag"}}{{icon "tag"}}{{else}}{{icon "globe"}}{{end}}</span>
+          <div class="grow"><b>{{.Subject}}</b>{{if .Owner}} <span class="faint small">for {{.Owner}}</span>{{end}}<div class="small muted">{{join .Labels " · "}}{{if .OfflineDebounce}} · offline after {{.OfflineDebounce}}{{end}}{{if .NotSeenHours}} · not seen {{.NotSeenHours}}h{{end}}</div></div>
+          <form method="post" action="{{$p.Base}}/alerts/rules/{{.ID}}/delete">{{template "csrf" $p.CSRF}}<button class="btn ghost sm icon-only" aria-label="Remove">{{icon "trash"}}</button></form>
+        </div>
+      {{else}}
+        <div class="empty">{{icon "bell"}}<b>No alert rules yet</b><span class="small">Add one below, or use the Watch button on a machine.</span></div>
+      {{end}}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>New rule</h2></div>
+      <form class="bd stack" method="post" action="{{.Base}}/alerts/rules">{{template "csrf" .CSRF}}
+        <div class="form-grid">
+          <label class="field">Watch
+            <select class="input" name="subject_type" id="subj-type">
+              <option value="node">a device</option>
+              <option value="user">a user's devices</option>
+              {{if .Scope.All}}<option value="tag">devices with a tag</option><option value="all">everything</option>{{end}}
+            </select>
+          </label>
+          <label class="field">Device<select class="input" name="node">{{range $d.Nodes}}<option value="{{.ID}}">{{.DisplayName}}{{if .UserName}} ({{.UserName}}){{end}}</option>{{end}}</select></label>
+          <label class="field">User<select class="input" name="user">{{range $d.Users}}<option>{{.Name}}</option>{{end}}</select></label>
+          {{if .Scope.All}}<label class="field">Tag<input class="input mono" name="tag" placeholder="tag:server"></label>{{end}}
+          {{if and $d.CanAll $d.Accounts}}<label class="field full">Send to<select class="input" name="for_account">{{range $d.Accounts}}<option value="{{.ID}}" {{if eq .ID $p.Me.ID}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>{{end}}
+        </div>
+        <fieldset class="grid g2">
+          {{range $d.Kinds}}<label class="check"><input type="checkbox" name="event" value="{{.Kind}}" {{if or (eq (print .Kind) "node_offline") (eq (print .Kind) "node_added")}}checked{{end}}><span>{{.Label}}</span></label>{{end}}
+        </fieldset>
+        <div class="form-grid">
+          <label class="field">Offline alert delay <span class="help">Skip blips shorter than this.</span><select class="input" name="debounce_min"><option value="0">none</option><option value="2" selected>2 minutes</option><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="60">1 hour</option></select></label>
+          <label class="field">"Not seen" after <span class="help">For the "Not seen for a while" event.</span><select class="input" name="not_seen_hours"><option value="12">12 hours</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">1 week</option></select></label>
+        </div>
+        <p class="small muted">Pick the device, user or tag that matches the "Watch" choice; the other fields are ignored.</p>
+        <div><button class="btn primary">{{icon "plus"}}Add rule</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="stack lg">
+    <section class="card">
+      <div class="hd"><h2>{{icon "send"}} Telegram</h2></div>
+      <div class="bd stack">
+        {{if not $d.TGEnabled}}
+          <p class="muted">Telegram isn't set up on this server. An admin adds a bot token in meshpanel's config.</p>
+        {{else if $d.Telegram}}
+          <div class="row between"><span>Linked to <b>{{$d.Telegram.Name}}</b></span><span class="badge ok">{{icon "check"}}on</span></div>
+          <p class="small muted">Approval requests{{if has .Caps "approve_devices"}} for devices{{end}} and your alerts arrive in your chat with {{if $d.BotName}}@{{$d.BotName}}{{else}}the bot{{end}}.</p>
+          <form method="post" action="{{.Base}}/alerts/telegram/unlink">{{template "csrf" .CSRF}}<button class="btn sm">Unlink</button></form>
+        {{else if $d.LinkURL}}
+          <p>Open this link on the phone that has Telegram and tap <b>Start</b>. It works once, for 10 minutes.</p>
+          <a class="btn primary block" href="{{$d.LinkURL}}" target="_blank" rel="noopener">{{icon "send"}}Open Telegram</a>
+          <div class="qr" style="margin:0 auto"><img src="{{qr $d.LinkURL}}" alt="QR code for the Telegram link"></div>
+          <a class="btn ghost sm" href="{{.Base}}/alerts">I've linked it, refresh</a>
+        {{else}}
+          <p class="muted">Get approvals and alerts in Telegram, with buttons to approve devices.</p>
+          <form method="post" action="{{.Base}}/alerts/telegram/link">{{template "csrf" .CSRF}}<button class="btn primary block">{{icon "link"}}Link Telegram</button></form>
+        {{end}}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>{{icon "moon"}} Quiet hours</h2></div>
+      <form class="bd stack" method="post" action="{{.Base}}/alerts/quiet">{{template "csrf" .CSRF}}
+        <div class="form-grid">
+          <label class="field">From<input class="input" type="time" name="quiet_start" value="{{if .Me.QuietStart}}{{.Me.QuietStart}}{{else}}22:00{{end}}"></label>
+          <label class="field">To<input class="input" type="time" name="quiet_end" value="{{if .Me.QuietEnd}}{{.Me.QuietEnd}}{{else}}07:00{{end}}"></label>
+        </div>
+        <label class="field">Time zone<select class="input" name="timezone">{{range $d.Timezones}}<option {{if eq . $p.Me.Timezone}}selected{{end}}>{{.}}</option>{{end}}</select></label>
+        <p class="small muted">{{if .Me.QuietStart}}On: {{.Me.QuietStart}}–{{.Me.QuietEnd}}. {{end}}Alerts still show in the feed. Security alerts always come through.</p>
+        <div class="row"><button class="btn">Save</button>{{if .Me.QuietStart}}<button class="btn ghost" name="off" value="1">Turn off</button>{{end}}</div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="hd"><h2>Feed</h2></div>
+      <div class="list feed" id="al-feed" data-live="*" hx-get="{{.Base}}/alerts" hx-trigger="mp-live" hx-select="#al-feed" hx-swap="outerHTML">
+        {{range $d.Feed}}<div class="item"><div class="txt">{{.Text}}</div><span class="when" data-ago="{{unix .CreatedAt}}">{{ago .CreatedAt}}</span></div>{{else}}<div class="empty small">Nothing yet</div>{{end}}
+      </div>
+    </section>
+  </div>
+</div>
+{{end}}

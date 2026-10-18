@@ -1,0 +1,13 @@
+{{define "auth-page"}}{{$f := .Data}}
+<h1>Enter your code</h1>
+<p class="lead">from your authenticator app</p>
+<form class="card" method="post" action="{{.Base}}/login/2fa" hx-boost="false">
+  {{template "csrf" .CSRF}}
+  <input type="hidden" name="next" value="{{$f.Next}}">
+  {{if $f.Error}}<div class="banner danger" role="alert">{{icon "alert"}}<div>{{$f.Error}}</div></div>{{end}}
+  <input class="input code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9a-zA-Z -]{6,13}" maxlength="13" placeholder="000000" required autofocus aria-label="Code">
+  <button class="btn primary lg block">Verify</button>
+  <details class="small muted"><summary style="cursor:pointer">Lost your phone?</summary><p class="mt">Type one of your backup codes (like <code>abcde-fghjk</code>) instead. If you have none left, ask an admin to reset your 2FA.</p></details>
+</form>
+<p class="foot">Signed in as <b>{{$f.Username}}</b> · <a class="link" href="{{.Base}}/login">use another account</a></p>
+{{end}}

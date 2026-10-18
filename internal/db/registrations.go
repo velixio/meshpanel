@@ -141,3 +141,9 @@ func (d *DB) ListPending(ctx context.Context, openOnly bool, limit int) ([]*Pend
 	}
 	return out, rows.Err()
 }
+
+// LatestPending returns the newest request for authID by requester, in any status.
+func (d *DB) LatestPending(ctx context.Context, authID string, requesterID int64) (*Pending, error) {
+	return scanPending(d.SQL.QueryRowContext(ctx, `SELECT `+pendingCols+` FROM pending_registrations
+		WHERE auth_id = ? AND requester_id = ? ORDER BY id DESC LIMIT 1`, authID, requesterID))
+}

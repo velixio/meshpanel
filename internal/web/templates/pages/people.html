@@ -1,0 +1,56 @@
+{{define "content"}}{{$d := .Data}}{{$p := .}}
+<div class="page-head"><div><h1>People</h1><p class="sub">Panel accounts: who can sign in, what they can do.</p></div></div>
+{{if $d.NewInvite}}
+<div class="banner ok mb">{{icon "send"}}<div class="grow"><b>Invite created.</b> Send this link to the person. It works once, for 72 hours.
+  <div class="secret mt"><code>{{$d.NewInvite}}</code><button type="button" class="btn sm" data-copy="{{$d.NewInvite}}">{{icon "copy"}}Copy</button></div>
+  {{if not .PublicURL}}<div class="small mt">Set <code>server.public_url</code> in the config so links include your domain.</div>{{end}}
+</div></div>
+<div class="mt"></div>
+{{end}}
+<div class="split">
+  <section class="card">
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Person</th><th>Role</th><th class="hide-sm">headscale user</th><th class="hide-sm">Security</th><th class="hide-sm">Last sign-in</th></tr></thead>
+      <tbody>
+      {{range $d.People}}
+        <tr class="clickable" data-href="{{$p.Base}}/people/{{.ID}}">
+          <td><div class="name"><span class="avatar">{{initials .Name}}</span><div><a href="{{$p.Base}}/people/{{.ID}}"><b>{{.Name}}</b></a><div class="sub">{{.Username}}</div></div></div></td>
+          <td>{{if .Disabled}}<span class="badge danger">disabled</span>{{else}}<span class="badge {{if eq .Role "owner"}}accent{{end}}">{{.Role}}</span>{{end}}</td>
+          <td class="hide-sm mono small">{{if .HSUser}}{{.HSUser}}{{else}}<span class="faint">not linked</span>{{end}}</td>
+          <td class="hide-sm"><div class="row">{{if .TOTPEnabled}}<span class="badge ok">{{icon "lock"}}2FA</span>{{else}}<span class="badge warn">2FA pending</span>{{end}}{{if .Telegram}}<span class="badge info">{{icon "send"}}Telegram</span>{{end}}</div></td>
+          <td class="hide-sm small muted">{{ago .LastLoginAt}}</td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table></div>
+  </section>
+  <div class="stack lg">
+    <section class="card">
+      <div class="hd"><h2>Invite someone</h2></div>
+      <form class="bd stack" method="post" action="{{.Base}}/people/invite">{{template "csrf" .CSRF}}
+        <label class="field">Username<input class="input" name="username" autocapitalize="none" placeholder="e.g. ravi" required></label>
+        <label class="field">Role
+          <select class="input" name="role">{{range $d.Roles}}<option value="{{.}}" {{if eq . "member"}}selected{{end}}>{{.}} · {{roleHelp .}}</option>{{end}}</select>
+        </label>
+        <label class="field">Devices register under
+          <select class="input" name="hs_user"><option value="_new">a new headscale user with the same name</option>{{range $d.HSUsers}}<option value="{{.Name}}">existing user: {{.Name}}</option>{{end}}</select>
+        </label>
+        <button class="btn primary">{{icon "send"}}Create invite link</button>
+        <p class="small muted">They set their own password and two-factor.</p>
+      </form>
+    </section>
+    {{if $d.Invites}}
+    <section class="card">
+      <div class="hd"><h2>Open invites</h2></div>
+      <div class="list">
+      {{range $d.Invites}}
+        <div class="item"><div class="grow"><b>{{.Username}}</b> <span class="faint small">{{.Role}}</span><div class="small muted">expires {{until .ExpiresAt}}</div></div>
+          <form method="post" action="{{$p.Base}}/people/invites/{{.TokenHash}}/revoke">{{template "csrf" $p.CSRF}}<button class="btn ghost sm">Revoke</button></form>
+        </div>
+      {{end}}
+      </div>
+    </section>
+    {{end}}
+  </div>
+</div>
+{{end}}

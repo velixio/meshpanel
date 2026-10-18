@@ -1,0 +1,62 @@
+{{define "content"}}{{$d := .Data}}{{$p := .}}
+<div class="page-head"><div><h1>Pre-auth keys</h1><p class="sub">Add servers and headless devices without the sign-in page.</p></div></div>
+
+{{with $d.NewKey}}
+<section class="card" style="border-color:var(--ok)">
+  <div class="hd"><h2>{{icon "check"}} Key created</h2><span class="hint">Copy it now. It won't be shown in full again.</span></div>
+  <div class="bd split" style="grid-template-columns:minmax(0,1fr) auto">
+    <div class="stack">
+      <div class="secret"><code id="newkey">{{.Key}}</code><button class="btn sm" data-copy="{{.Key}}">{{icon "copy"}}Copy key</button></div>
+      <div class="small muted">On the device, run:</div>
+      <div class="secret"><code>{{$d.Command}}</code><button class="btn sm" data-copy="{{$d.Command}}">{{icon "copy"}}Copy</button></div>
+      <details class="small"><summary style="cursor:pointer" class="muted">Setup steps for each system</summary>
+        <div class="stack mt">
+          <div><b>Linux</b>: <code>curl -fsSL https://tailscale.com/install.sh | sh</code>, then the command above with <code>sudo</code>.</div>
+          <div><b>macOS / Windows</b>: install Tailscale, then run the command above in a terminal (Windows: an admin PowerShell, <code>tailscale.exe</code>).</div>
+          <div><b>iOS / Android</b>: phones don't take keys. Open the app, set the server to <code>{{if $d.LoginURL}}{{$d.LoginURL}}{{else}}your headscale URL{{end}}</code> and log in instead.</div>
+          <div><b>Docker</b>: set <code>TS_AUTHKEY</code> to the key and <code>TS_EXTRA_ARGS=--login-server={{if $d.LoginURL}}{{$d.LoginURL}}{{else}}…{{end}}</code>.</div>
+        </div>
+      </details>
+    </div>
+    <div class="qr"><img src="{{$d.QR}}" alt="QR code with the login command"></div>
+  </div>
+</section>
+<div class="mt-lg"></div>
+{{end}}
+
+<div class="split">
+  <section class="card">
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Key</th><th>For</th><th class="hide-sm">Type</th><th>Expires</th><th></th></tr></thead>
+      <tbody>
+      {{range $d.Keys}}{{$expired := .Expiration.Before now}}
+        <tr>
+          <td class="mono small">{{if gt (len .Key) 12}}{{slice .Key 0 12}}…{{else}}{{.Key}}{{end}}</td>
+          <td>{{if .ACLTags}}{{template "tags" .ACLTags}}{{else if .User}}{{.User.Name}}{{end}}</td>
+          <td class="hide-sm"><div class="row">{{if .Reusable}}<span class="badge">reusable</span>{{else}}<span class="badge">single use</span>{{end}}{{if .Ephemeral}}<span class="badge info">ephemeral</span>{{end}}{{if .Used}}<span class="badge">used</span>{{end}}</div></td>
+          <td class="nowrap small">{{if $expired}}<span class="badge danger">expired</span>{{else}}{{until .Expiration}}{{end}}</td>
+          <td class="actions">{{if not $expired}}<form method="post" action="{{$p.Base}}/keys/{{.ID}}/expire" style="display:inline">{{template "csrf" $p.CSRF}}<button class="btn ghost sm">Expire</button></form>{{end}}
+            <form method="post" action="{{$p.Base}}/keys/{{.ID}}/delete" style="display:inline" data-confirm="Delete this key?">{{template "csrf" $p.CSRF}}<button class="btn ghost sm icon-only" aria-label="Delete">{{icon "trash"}}</button></form></td>
+        </tr>
+      {{else}}
+        <tr><td colspan="5"><div class="empty">{{icon "key"}}<b>No keys</b><span class="small">Create one to add a server or a device without a screen.</span></div></td></tr>
+      {{end}}
+      </tbody>
+    </table></div>
+  </section>
+  <section class="card">
+    <div class="hd"><h2>New key</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/keys">{{template "csrf" .CSRF}}
+      {{if $d.OwnOnly}}<p class="small muted">Keys you create register devices as <b>{{.Me.HSUser}}</b>.</p>
+      {{else}}<label class="field">User<select class="input" name="user"><option value="">— none (tags only) —</option>{{range $d.Users}}<option value="{{.Name}}">{{.Name}}</option>{{end}}</select></label>{{end}}
+      {{if $d.CanTags}}<label class="field">Tags <span class="help">Optional. Tagged devices are owned by the tags, not a user.</span><input class="input mono" name="tags" placeholder="tag:server"></label>{{end}}
+      <label class="field">Valid for
+        <select class="input" name="expiry_hours"><option value="1">1 hour</option><option value="24" selected>1 day</option><option value="168">7 days</option><option value="720">30 days</option><option value="2160">90 days</option></select>
+      </label>
+      <label class="check"><input type="checkbox" name="reusable"><span>Reusable<span class="help">One key for many devices, until it expires.</span></span></label>
+      <label class="check"><input type="checkbox" name="ephemeral"><span>Ephemeral<span class="help">Devices are removed when they go offline. Good for CI and containers.</span></span></label>
+      <button class="btn primary">{{icon "key"}}Create key</button>
+    </form>
+  </section>
+</div>
+{{end}}

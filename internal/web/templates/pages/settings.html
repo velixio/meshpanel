@@ -1,0 +1,57 @@
+{{define "content"}}{{$d := .Data}}
+<div class="page-head"><div><h1>Settings</h1><p class="sub">Server status, branding and integrations.</p></div></div>
+<div class="grid g2">
+  <section class="card">
+    <div class="hd"><h2>headscale</h2>{{if $d.Healthy}}<span class="badge ok"><span class="dot on"></span>connected</span>{{else}}<span class="badge danger">unreachable</span>{{end}}</div>
+    <div class="bd">
+      <dl class="kv">
+        <dt>Version</dt><dd>{{if $d.HSVersion}}{{$d.HSVersion}} {{if not $d.VersionTested}}<span class="badge warn">newer than tested</span>{{end}}{{else}}<span class="faint">unknown (check headscale.http_url)</span>{{end}}</dd>
+        <dt>Socket</dt><dd class="mono small">{{$d.Socket}}</dd>
+        {{if $d.HSError}}<dt>Last error</dt><dd class="err-text">{{$d.HSError}}</dd>{{end}}
+        <dt>Policy mode</dt><dd>{{if $d.PolicyMode}}{{$d.PolicyMode}}{{else}}—{{end}}</dd>
+        <dt>Config file</dt><dd class="small">{{if $d.ConfigPath}}<span class="mono">{{$d.ConfigPath}}</span> {{if $d.ConfigWritable}}<span class="badge ok">writable</span>{{else}}<span class="badge warn">read-only</span>{{end}}{{else}}<span class="faint">not configured; DNS editing is off</span>{{end}}</dd>
+        <dt>Apply changes</dt><dd>{{if $d.ApplyReady}}<span class="badge ok">restart command set</span>{{else}}<span class="badge warn">not configured</span>{{end}}</dd>
+        <dt>Panel</dt><dd>meshpanel {{.Version}} · up {{$d.Uptime}}</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>Branding</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/settings/brand" enctype="multipart/form-data" hx-boost="false">{{template "csrf" .CSRF}}
+      <label class="field">Company name<input class="input" name="name" value="{{if ne $d.Brand.Name "meshpanel"}}{{$d.Brand.Name}}{{end}}" placeholder="meshpanel" maxlength="40"></label>
+      <label class="field">Accent color <span class="help">Used for buttons and highlights in every theme.</span>
+        <span class="row"><input type="color" name="accent" value="{{if $d.Brand.Accent}}{{$d.Brand.Accent}}{{else}}#1c1c1a{{end}}" style="width:52px;height:36px;border:0;background:none;padding:0"><label class="check small"><input type="checkbox" name="reset_accent" value="1" {{if not $d.Brand.Accent}}checked{{end}}>use the theme's default</label></span>
+      </label>
+      <label class="field">Logo <span class="help">Square PNG or SVG, under 256 KB.</span><input class="input" type="file" name="logo" accept="image/png,image/svg+xml,image/jpeg,image/webp" style="padding-top:6px"></label>
+      {{if $d.Brand.Logo}}<label class="check small"><input type="checkbox" name="remove_logo" value="1">Remove the current logo</label>{{end}}
+      <div><button class="btn primary">Save branding</button></div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>{{icon "send"}} Telegram</h2>{{if $d.TGBot}}<span class="badge ok">@{{$d.TGBot}}</span>{{else if $d.TGEnabled}}<span class="badge danger">error</span>{{else}}<span class="badge">off</span>{{end}}</div>
+    <div class="bd stack">
+      {{if not $d.TGEnabled}}<p class="muted">Add <code>telegram.token</code> (from @BotFather) to meshpanel's config and restart meshpanel to turn on approvals and alerts in Telegram.</p>
+      {{else}}
+        {{if $d.TGErr}}<div class="banner danger">{{icon "alert"}}<div>{{$d.TGErr}}</div></div>{{end}}
+        <form class="stack" method="post" action="{{.Base}}/settings/telegram">{{template "csrf" .CSRF}}
+          <label class="field">Approvals group chat <span class="help">Optional. Add the bot to a group and paste the group's id (like -1001234567890). Only linked approvers can tap the buttons.</span><input class="input mono" name="group_chat" value="{{$d.GroupChat}}" placeholder="-100…"></label>
+          <div><button class="btn">Save</button></div>
+        </form>
+      {{end}}
+    </div>
+  </section>
+
+  {{if has .Caps "approve_devices"}}
+  <section class="card">
+    <div class="hd"><h2>Add a device by link</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/machines/register">{{template "csrf" .CSRF}}
+      <label class="field">Link or ID shown by the device<input class="input mono" name="auth_id" placeholder="…/register/hskey-authreq-…" required></label>
+      <label class="field">User<select class="input" name="user">{{range $d.Users}}<option>{{.Name}}</option>{{end}}</select></label>
+      <div><button class="btn">Register device</button></div>
+    </form>
+  </section>
+  {{end}}
+</div>
+{{end}}

@@ -1,0 +1,23 @@
+{{define "content"}}{{$d := .Data}}{{$p := .}}
+<div class="page-head"><div><div class="crumbs"><a href="{{.Base}}/">Overview</a>{{icon "chev"}}</div><h1>Approvals</h1><p class="sub">Device and SSH requests from the phone sign-in page and Telegram.</p></div></div>
+<section id="ap-open" class="card" data-live="registration" hx-get="{{.Base}}/approvals" hx-trigger="mp-live" hx-select="#ap-open" hx-swap="outerHTML">
+  <div class="hd"><h2>Open</h2></div>
+  {{if $d.Open}}{{range $d.Open}}{{template "pendingRow" dict "P" $p "R" .}}{{end}}{{else}}<div class="empty">{{icon "check"}}<b>Nothing waiting</b></div>{{end}}
+</section>
+<section class="card mt-lg">
+  <div class="hd"><h2>Recent decisions</h2></div>
+  <div class="table-wrap"><table class="t">
+    <thead><tr><th>Requester</th><th>Kind</th><th class="hide-sm">Device</th><th>Result</th><th class="hide-sm">By</th><th>When</th></tr></thead>
+    <tbody>
+    {{range $d.Recent}}<tr>
+      <td>{{index $d.Names .RequesterID}}</td>
+      <td>{{if eq .Kind "ssh"}}SSH check{{else}}Device{{end}}</td>
+      <td class="hide-sm">{{if .NodeName}}{{.NodeName}}{{else}}{{device .UserAgent}}{{end}}</td>
+      <td>{{if eq .Status "approved"}}<span class="badge ok">approved</span>{{else if eq .Status "denied"}}<span class="badge danger">denied</span>{{else if eq .Status "failed"}}<span class="badge danger" title="{{.Error}}">failed</span>{{else}}<span class="badge">{{.Status}}</span>{{end}}</td>
+      <td class="hide-sm">{{if .DecidedBy}}{{.DecidedBy}} <span class="faint small">via {{.DecidedVia}}</span>{{else}}—{{end}}</td>
+      <td class="nowrap"><span data-ago="{{unix .CreatedAt}}">{{ago .CreatedAt}}</span></td>
+    </tr>{{else}}<tr><td colspan="6"><div class="empty small">No decisions yet</div></td></tr>{{end}}
+    </tbody>
+  </table></div>
+</section>
+{{end}}

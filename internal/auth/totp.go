@@ -102,3 +102,6 @@ func UseBackupCode(ctx context.Context, d *db.DB, accountID int64, code string) 
 	ok, err := d.ConsumeBackupCode(ctx, accountID, HashToken(normalizeBackupCode(code)))
 	return err == nil && ok
 }
+
+// TOTPCode returns the code for t (used by tests and the CLI).
+func TOTPCode(secret string, t time.Time) string { return totpAt(secret, t) }

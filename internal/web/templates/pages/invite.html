@@ -1,0 +1,12 @@
+{{define "auth-page"}}{{$f := .Data}}
+<h1>Join {{.Brand.Name}}</h1>
+<p class="lead">You were invited as <b>{{$f.Username}}</b> ({{$f.Invite.Role}}).</p>
+<form class="card" method="post" hx-boost="false">
+  {{template "csrf" .CSRF}}
+  {{if $f.Error}}<div class="banner danger" role="alert">{{icon "alert"}}<div>{{$f.Error}}</div></div>{{end}}
+  <label class="field">Display name<input class="input" name="display_name" autocomplete="name" autofocus></label>
+  <label class="field">Password <span class="help">At least 10 characters.</span><input class="input" type="password" name="password" autocomplete="new-password" minlength="10" required></label>
+  <label class="field">Confirm password<input class="input" type="password" name="confirm" autocomplete="new-password" minlength="10" required></label>
+  <button class="btn primary lg block">Create my account</button>
+</form>
+{{end}}

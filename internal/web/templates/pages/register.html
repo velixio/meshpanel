@@ -1,0 +1,67 @@
+{{define "auth-page"}}{{$v := .Data}}{{$p := .}}
+{{if eq $v.State "invalid"}}
+  <div class="done-mark bad">{{icon "x"}}</div>
+  <h1>This link doesn't work</h1>
+  <p class="lead">It isn't a valid device request. Open the Tailscale app again and tap <b>Log in</b> to get a fresh link.</p>
+
+{{else if eq $v.State "waiting"}}
+  <div class="spinner" aria-hidden="true"></div>
+  <h1>Waiting for approval</h1>
+  <p class="lead">{{if eq $v.Kind "ssh"}}An approver has been asked to allow this SSH session.{{else}}An admin has been notified on Telegram. This page updates by itself, so keep it open.{{end}}</p>
+  <div class="card" data-poll-status="{{$v.Path}}/status">
+    <div class="device"><span class="ico">{{icon "phone"}}</span><div><b>{{device $v.Pending.UserAgent}}</b><div class="small muted">Requested by {{.Me.Name}}{{if $v.Pending.HSUser}} · user <code>{{$v.Pending.HSUser}}</code>{{end}}</div></div></div>
+    <div class="row between small"><span class="muted">Expires in about</span><span class="countdown" data-countdown="{{unix $v.Pending.ExpiresAt}}" data-on-zero="reload">15:00</span></div>
+    {{if not $v.Pending.HSUser}}{{if eq $v.Kind "register"}}<div class="banner warn">{{icon "info"}}<div>Your account isn't linked to a headscale user yet. The approver will pick one.</div></div>{{end}}{{end}}
+    <form method="post" action="{{$v.Path}}/cancel">{{template "csrf" .CSRF}}<button class="btn block">Cancel request</button></form>
+  </div>
+
+{{else if eq $v.State "choose"}}
+  <h1>Add this device</h1>
+  <p class="lead">You can approve devices. Pick the user it belongs to.</p>
+  <form class="card" method="post" action="{{$v.Path}}/decide">
+    {{template "csrf" .CSRF}}
+    <input type="hidden" name="decision" value="approve">
+    <div class="device"><span class="ico">{{icon "phone"}}</span><div><b>{{device $v.Device}}</b><div class="small muted">{{$v.IP}}</div></div></div>
+    <label class="field">Register under user
+      <select class="input" name="as_user" required>{{range $v.Users}}<option value="{{.Name}}">{{.Name}}{{if .DisplayName}} ({{.DisplayName}}){{end}}</option>{{end}}</select>
+    </label>
+    <button class="btn primary lg block">{{icon "check"}}Approve this device</button>
+  </form>
+
+{{else if eq $v.State "ssh-decide"}}
+  <h1>Approve SSH access</h1>
+  <p class="lead">A device is asking to open an SSH session that requires a fresh check.</p>
+  <div class="card">
+    <div class="device"><span class="ico">{{icon "lock"}}</span><div><b>SSH sign-in check</b><div class="small muted">{{$v.IP}} · expires in <span data-countdown="{{unix $v.Pending.ExpiresAt}}">…</span></div></div></div>
+    <form method="post" action="{{$v.Path}}/decide">{{template "csrf" .CSRF}}<input type="hidden" name="decision" value="approve"><button class="btn primary lg block">{{icon "check"}}Approve</button></form>
+    <form method="post" action="{{$v.Path}}/decide">{{template "csrf" .CSRF}}<input type="hidden" name="decision" value="deny"><button class="btn block">{{icon "x"}}Reject</button></form>
+  </div>
+
+{{else if eq $v.State "approved"}}
+  <div class="done-mark">{{icon "check"}}</div>
+  <h1>{{if eq $v.Kind "ssh"}}SSH access approved{{else}}You're connected{{end}}</h1>
+  <p class="lead">Approved by <b>{{$v.Pending.DecidedBy}}</b>. You can go back to the Tailscale app.</p>
+  {{if $v.Pending.NodeName}}<div class="card"><div class="device"><span class="ico">{{icon "phone"}}</span><div><b>{{$v.Pending.NodeName}}</b><div class="small muted mono">{{$v.Pending.NodeIP}}</div></div></div></div>{{end}}
+
+{{else if eq $v.State "denied"}}
+  <div class="done-mark bad">{{icon "x"}}</div>
+  <h1>Request denied</h1>
+  <p class="lead">{{$v.Pending.DecidedBy}} denied this request. Contact your admin if this is a mistake.</p>
+
+{{else if eq $v.State "expired"}}
+  <div class="done-mark bad">{{icon "clock"}}</div>
+  <h1>This request expired</h1>
+  <p class="lead">Nobody approved it in time. Open the Tailscale app and log in again to get a new link.</p>
+
+{{else if eq $v.State "cancelled"}}
+  <div class="done-mark bad">{{icon "x"}}</div>
+  <h1>Request cancelled</h1>
+  <p class="lead">Open the Tailscale app and log in again whenever you're ready.</p>
+
+{{else}}
+  <div class="done-mark bad">{{icon "alert"}}</div>
+  <h1>Something went wrong</h1>
+  <p class="lead">{{if $v.Error}}{{$v.Error}}{{else}}headscale could not complete this request.{{end}}</p>
+  <div class="card small muted">The link from the Tailscale app is only valid for about 15 minutes. If it expired, log in again in the app.</div>
+{{end}}
+{{end}}

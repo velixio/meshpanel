@@ -1,0 +1,38 @@
+{{define "flash"}}{{if .Flash}}<div class="flash-zone"><div class="toast {{.Flash.Kind}}" data-auto role="status">{{if eq .Flash.Kind "danger"}}{{icon "alert"}}{{else}}{{icon "check"}}{{end}}<div>{{.Flash.Msg}}</div></div></div>{{end}}{{end}}
+
+{{define "csrf"}}<input type="hidden" name="_csrf" value="{{.}}">{{end}}
+
+{{define "nodeIcon"}}{{if .IsTagged}}{{icon "server"}}{{else}}{{icon "laptop"}}{{end}}{{end}}
+
+{{/* A pending approval row. Needs dict "P" Page "R" pendingView. */}}
+{{define "pendingRow"}}{{$p := .P}}{{$r := .R}}
+<div class="req">
+  <span class="ico">{{if eq $r.Pending.Kind "ssh"}}{{icon "lock"}}{{else}}{{icon "phone"}}{{end}}</span>
+  <div class="meta">
+    <b>{{$r.RequesterName}}</b> <span class="muted">{{if eq $r.Pending.Kind "ssh"}}wants SSH access{{else}}wants to add a device{{end}}</span>
+    <div class="sub">{{device $r.Pending.UserAgent}} · {{$r.Pending.IP}}{{if $r.Pending.HSUser}} · user <code>{{$r.Pending.HSUser}}</code>{{end}} · expires in <span data-countdown="{{unix $r.Pending.ExpiresAt}}">…</span></div>
+  </div>
+  <div class="acts">
+    <form method="post" action="{{$p.Base}}/approvals/{{$r.Pending.ID}}">{{template "csrf" $p.CSRF}}<input type="hidden" name="decision" value="approve"><button class="btn primary sm">{{icon "check"}}Approve</button></form>
+    <form method="post" action="{{$p.Base}}/approvals/{{$r.Pending.ID}}">{{template "csrf" $p.CSRF}}<input type="hidden" name="decision" value="deny"><button class="btn sm">{{icon "x"}}Deny</button></form>
+    {{if and (eq $r.Pending.Kind "register") (has $p.Caps "approve_devices") $r.Users}}
+    <details data-menu>
+      <summary class="btn ghost sm" title="Approve as another user">{{icon "users"}}As…</summary>
+      <div class="menu">
+        <div class="label">Register under user</div>
+        {{range $r.Users}}<form method="post" action="{{$p.Base}}/approvals/{{$r.Pending.ID}}">{{template "csrf" $p.CSRF}}<input type="hidden" name="decision" value="approve"><input type="hidden" name="as_user" value="{{.Name}}"><button>{{icon "user"}}{{.Name}}</button></form>{{end}}
+      </div>
+    </details>
+    {{end}}
+  </div>
+</div>{{end}}
+
+{{define "routeBadges"}}
+{{if .IsExitNodeApproved}}<span class="badge info">{{icon "exit"}}Exit node</span>{{else if .IsExitNodeAdvertised}}<span class="badge warn">{{icon "exit"}}Exit pending</span>{{end}}
+{{range .ApprovedRoutes}}{{if eq (risk .) "exit"}}{{else}}<span class="badge mono">{{.}}</span>{{end}}{{end}}
+{{with .PendingRoutes}}{{$n := 0}}{{range .}}{{if ne (risk .) "exit"}}{{$n = add $n 1}}{{end}}{{end}}{{if $n}}<span class="badge warn">{{$n}} route{{if gt $n 1}}s{{end}} pending</span>{{end}}{{end}}
+{{end}}
+
+{{define "tags"}}{{range .}}<span class="badge accent tag">{{.}}</span>{{end}}{{end}}
+
+{{define "statusText"}}{{if .Online}}<span class="dot on"></span> Online{{else if .LastSeen}}<span class="dot"></span> <span data-ago="{{unix .LastSeen}}">{{ago .LastSeen}}</span>{{else}}<span class="dot"></span> Never seen{{end}}{{end}}

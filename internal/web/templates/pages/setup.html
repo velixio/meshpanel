@@ -1,0 +1,14 @@
+{{define "auth-page"}}{{$f := .Data}}
+<h1>Welcome to meshpanel</h1>
+<p class="lead">Create the owner account. You'll set up two-factor next.</p>
+<form class="card" method="post" action="{{.Base}}/setup" hx-boost="false">
+  {{template "csrf" .CSRF}}
+  {{if $f.Error}}<div class="banner danger" role="alert">{{icon "alert"}}<div>{{$f.Error}}</div></div>{{end}}
+  <label class="field">Username<input class="input" name="username" value="{{$f.Username}}" autocapitalize="none" autocomplete="username" required autofocus></label>
+  <label class="field">Display name <span class="help">Optional. Shown in approvals and the audit log.</span><input class="input" name="display_name" autocomplete="name"></label>
+  <label class="field">Your headscale user <span class="help">Optional. Your own devices register under this headscale user.</span><input class="input" name="hs_user" autocapitalize="none" placeholder="e.g. anna"></label>
+  <label class="field">Password <span class="help">At least 10 characters.</span><input class="input" type="password" name="password" autocomplete="new-password" minlength="10" required></label>
+  <label class="field">Confirm password<input class="input" type="password" name="confirm" autocomplete="new-password" minlength="10" required></label>
+  <button class="btn primary lg block">Create owner account</button>
+</form>
+{{end}}
