@@ -1,0 +1,48 @@
+# meshpanel configuration. Every key can also be set with an environment
+# variable: MESHPANEL_<SECTION>_<KEY>, e.g. MESHPANEL_SERVER_LISTEN=":8030".
+
+server:
+  # Address meshpanel listens on. Plain HTTP: put your reverse proxy in front.
+  listen: ":8030"
+  # Dashboard prefix. /register/* and /auth/* are always served at the root.
+  base_path: "/admin"
+  # The public URL phones use (same as headscale's server_url).
+  public_url: "https://headscale.example.com"
+  # Mark cookies Secure. Keep true behind an HTTPS proxy; set false only for
+  # a plain-HTTP LAN trial.
+  cookie_secure: true
+  # Only these proxies may set X-Forwarded-For. CIDRs or single IPs.
+  trusted_proxies: ["127.0.0.1/32", "::1/128"]
+  # Generate with: openssl rand -hex 32   (or use session_secret_path)
+  session_secret: "change-me-to-a-random-string-of-32-chars-or-more"
+  # session_secret_path: /etc/meshpanel/session_secret
+
+headscale:
+  # headscale's unix socket. meshpanel's user must be in the socket's group.
+  socket: "/var/run/headscale/headscale.sock"
+  # headscale's local HTTP listener, used only to read /version.
+  http_url: "http://127.0.0.1:8080"
+  # headscale's config.yaml. Needed for DNS editing; leave empty to disable.
+  config_path: "/etc/headscale/config.yaml"
+  # Policy file, when headscale runs with policy.mode: file.
+  policy_path: ""
+  # headscale binary, used for `headscale configtest` before applying changes.
+  binary: "headscale"
+  # Commands that apply changes. See deploy/sudoers for the matching rule.
+  reload_command: "sudo systemctl reload headscale"
+  restart_command: "sudo systemctl restart headscale"
+  # How often meshpanel reads node state from headscale.
+  poll_interval: 5s
+
+db:
+  path: "/var/lib/meshpanel/meshpanel.db"
+
+telegram:
+  # Bot token from @BotFather. Leave empty to disable Telegram.
+  token: ""
+  # token_path: /etc/meshpanel/telegram_token
+  # Optional group chat that also receives approval cards (negative id).
+  group_chat_id: 0
+
+log:
+  level: "info"
