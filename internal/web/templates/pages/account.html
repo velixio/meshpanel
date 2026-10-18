@@ -30,6 +30,7 @@
   <section class="card">
     <div class="hd"><h2>Password</h2></div>
     <form class="bd stack" method="post" action="{{.Base}}/account/password">{{template "csrf" .CSRF}}
+      <input type="text" name="username" value="{{.Me.Username}}" autocomplete="username" hidden>
       <label class="field">Current password<input class="input" type="password" name="current" autocomplete="current-password" required></label>
       <label class="field">New password<input class="input" type="password" name="password" autocomplete="new-password" minlength="10" required></label>
       <label class="field">Confirm<input class="input" type="password" name="confirm" autocomplete="new-password" minlength="10" required></label>
