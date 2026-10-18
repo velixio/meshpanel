@@ -36,7 +36,7 @@
           <td class="hide-sm"><div class="row">{{if .Reusable}}<span class="badge">reusable</span>{{else}}<span class="badge">single use</span>{{end}}{{if .Ephemeral}}<span class="badge info">ephemeral</span>{{end}}{{if .Used}}<span class="badge">used</span>{{end}}</div></td>
           <td class="nowrap small">{{if $expired}}<span class="badge danger">expired</span>{{else}}{{until .Expiration}}{{end}}</td>
           <td class="actions">{{if not $expired}}<form method="post" action="{{$p.Base}}/keys/{{.ID}}/expire" style="display:inline">{{template "csrf" $p.CSRF}}<button class="btn ghost sm">Expire</button></form>{{end}}
-            <form method="post" action="{{$p.Base}}/keys/{{.ID}}/delete" style="display:inline" data-confirm="Delete this key?">{{template "csrf" $p.CSRF}}<button class="btn ghost sm icon-only" aria-label="Delete">{{icon "trash"}}</button></form></td>
+            <form method="post" action="{{$p.Base}}/keys/{{.ID}}/delete" style="display:inline" hx-confirm="Delete this key?">{{template "csrf" $p.CSRF}}<button class="btn ghost sm icon-only" aria-label="Delete">{{icon "trash"}}</button></form></td>
         </tr>
       {{else}}
         <tr><td colspan="5"><div class="empty">{{icon "key"}}<b>No keys</b><span class="small">Create one to add a server or a device without a screen.</span></div></td></tr>

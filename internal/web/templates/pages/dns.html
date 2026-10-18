@@ -3,7 +3,7 @@
 {{if $d.WhyNot}}<div class="banner info">{{icon "info"}}<div>{{$d.WhyNot}}</div></div><div class="mt"></div>{{end}}
 {{if $d.Error}}<div class="banner danger">{{icon "alert"}}<div><b>Not saved.</b> {{$d.Error}}</div></div><div class="mt"></div>{{end}}
 {{with $d.DNS}}
-<form method="post" action="{{$.Base}}/dns" data-confirm="Saving restarts headscale. Devices reconnect within seconds. Continue?">
+<form method="post" action="{{$.Base}}/dns" hx-confirm="Saving restarts headscale. Devices reconnect within seconds. Continue?">
   {{template "csrf" $.CSRF}}
   <fieldset {{if not $d.Writable}}disabled{{end}}>
   <div class="grid g2">

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="htmx-config" content='{"includeIndicatorStyles":false,"historyCacheSize":0,"refreshOnHistoryMiss":true}'>
+<meta name="htmx-config" content='{"includeIndicatorStyles":false,"historyCacheSize":0,"refreshOnHistoryMiss":true,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"[45]..","swap":true,"error":false}]}'>
 <title>{{if .Title}}{{.Title}} · {{end}}{{.Brand.Name}}</title>
 <link rel="icon" href="{{.Base}}/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="{{.Base}}/static/css/tokens.css?v={{.AssetV}}">

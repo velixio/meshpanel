@@ -89,11 +89,11 @@
           {{if $n.Expiry}}<input type="hidden" name="expiry" value="off"><button class="btn block">{{icon "clock"}}Turn off key expiry</button>
           {{else}}<input type="hidden" name="expiry" value="on"><button class="btn block">{{icon "clock"}}Turn on key expiry</button>{{end}}
         </form>
-        <form method="post" action="{{.Base}}/machines/{{$n.ID}}/expire" data-confirm="Expire the key for {{$n.DisplayName}}? It disconnects until someone signs in on it again.">{{template "csrf" .CSRF}}
+        <form method="post" action="{{.Base}}/machines/{{$n.ID}}/expire" hx-confirm="Expire the key for {{$n.DisplayName}}? It disconnects until someone signs in on it again.">{{template "csrf" .CSRF}}
           <button class="btn block">{{icon "power"}}Expire key now</button>
         </form>
         <hr style="margin:4px 0">
-        <form method="post" action="{{.Base}}/machines/{{$n.ID}}/delete" data-confirm="Delete {{$n.DisplayName}}? It is removed from the network immediately.">{{template "csrf" .CSRF}}
+        <form method="post" action="{{.Base}}/machines/{{$n.ID}}/delete" hx-confirm="Delete {{$n.DisplayName}}? It is removed from the network immediately.">{{template "csrf" .CSRF}}
           <button class="btn danger block">{{icon "trash"}}Delete machine</button>
         </form>
       </div>
