@@ -125,7 +125,8 @@
     }
     const row = e.target.closest("tr[data-href]");
     if (row && !e.target.closest("a,button,input,select,label,form,summary")) {
-      if (window.htmx) htmx.ajax("GET", row.dataset.href, { target: "body", swap: "outerHTML", push: true });
+      const link = row.querySelector("a[href]");
+      if (link) link.click();
       else location.href = row.dataset.href;
       return;
     }

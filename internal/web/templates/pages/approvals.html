@@ -1,6 +1,6 @@
 {{define "content"}}{{$d := .Data}}{{$p := .}}
 <div class="page-head"><div><div class="crumbs"><a href="{{.Base}}/">Overview</a>{{icon "chev"}}</div><h1>Approvals</h1><p class="sub">Device and SSH requests from the phone sign-in page and Telegram.</p></div></div>
-<section id="ap-open" class="card" data-live="registration" hx-get="{{.Base}}/approvals" hx-trigger="mp-live" hx-select="#ap-open" hx-swap="outerHTML">
+<section id="ap-open" class="card" data-live="registration" hx-get="{{.Base}}/approvals" hx-trigger="mp-live" hx-disinherit="hx-get hx-select hx-swap hx-trigger" hx-select="#ap-open" hx-swap="outerHTML">
   <div class="hd"><h2>Open</h2></div>
   {{if $d.Open}}{{range $d.Open}}{{template "pendingRow" dict "P" $p "R" .}}{{end}}{{else}}<div class="empty">{{icon "check"}}<b>Nothing waiting</b></div>{{end}}
 </section>

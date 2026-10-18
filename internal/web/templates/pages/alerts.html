@@ -83,7 +83,7 @@
 
     <section class="card">
       <div class="hd"><h2>Feed</h2></div>
-      <div class="list feed" id="al-feed" data-live="*" hx-get="{{.Base}}/alerts" hx-trigger="mp-live" hx-select="#al-feed" hx-swap="outerHTML">
+      <div class="list feed" id="al-feed" data-live="*" hx-get="{{.Base}}/alerts" hx-trigger="mp-live" hx-disinherit="hx-get hx-select hx-swap hx-trigger" hx-select="#al-feed" hx-swap="outerHTML">
         {{range $d.Feed}}<div class="item"><div class="txt">{{.Text}}</div><span class="when" data-ago="{{unix .CreatedAt}}">{{ago .CreatedAt}}</span></div>{{else}}<div class="empty small">Nothing yet</div>{{end}}
       </div>
     </section>

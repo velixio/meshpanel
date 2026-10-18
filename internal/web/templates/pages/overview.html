@@ -7,7 +7,7 @@
   </div>
 </div>
 
-<div id="ov-stats" data-live="node changed health" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-select="#ov-stats" hx-swap="outerHTML">
+<div id="ov-stats" data-live="node changed health" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-disinherit="hx-get hx-select hx-swap hx-trigger" hx-select="#ov-stats" hx-swap="outerHTML">
 <div class="grid g4">
   <div class="card stat ok"><span class="k"><span class="dot on"></span>Online</span><span class="v">{{$d.Online}}</span></div>
   <div class="card stat"><span class="k"><span class="dot"></span>Offline</span><span class="v">{{$d.Offline}}</span></div>
@@ -18,7 +18,7 @@
 
 <div class="split mt-lg">
   <div class="stack lg">
-    <section id="ov-pending" class="card" data-live="registration changed" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-select="#ov-pending" hx-swap="outerHTML">
+    <section id="ov-pending" class="card" data-live="registration changed" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-disinherit="hx-get hx-select hx-swap hx-trigger" hx-select="#ov-pending" hx-swap="outerHTML">
       <div class="hd"><h2>Waiting for approval</h2><a class="btn ghost sm" href="{{.Base}}/approvals">History</a></div>
       {{if $d.Pending}}
         {{range $d.Pending}}{{template "pendingRow" dict "P" $p "R" .}}{{end}}
@@ -66,7 +66,7 @@
   </div>
 
   <div class="stack lg">
-    <section id="ov-feed" class="card" data-live="*" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-select="#ov-feed" hx-swap="outerHTML">
+    <section id="ov-feed" class="card" data-live="*" hx-get="{{.Base}}/" hx-trigger="mp-live" hx-disinherit="hx-get hx-select hx-swap hx-trigger" hx-select="#ov-feed" hx-swap="outerHTML">
       <div class="hd"><h2>Activity</h2><a class="btn ghost sm" href="{{.Base}}/alerts">Alerts</a></div>
       {{if or $d.Feed $d.Recent}}
       <div class="list feed">

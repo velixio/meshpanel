@@ -10,7 +10,7 @@
   </div>
 </div>
 
-<div class="split" id="m-body" data-live="node changed" hx-get="{{.Base}}/machines/{{$n.ID}}" hx-trigger="mp-live" hx-select="#m-body" hx-swap="outerHTML">
+<div class="split" id="m-body" data-live="node changed" hx-get="{{.Base}}/machines/{{$n.ID}}" hx-trigger="mp-live" hx-disinherit="hx-get hx-select hx-swap hx-trigger" hx-select="#m-body" hx-swap="outerHTML">
   <div class="stack lg">
     <section class="card">
       <div class="hd"><h2>Details</h2></div>
