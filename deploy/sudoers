@@ -1,0 +1,3 @@
+# /etc/sudoers.d/meshpanel  (install with: visudo -cf this-file && cp ... )
+# Lets meshpanel apply DNS and policy changes, and nothing else.
+meshpanel ALL=(root) NOPASSWD: /usr/bin/systemctl restart headscale, /usr/bin/systemctl reload headscale

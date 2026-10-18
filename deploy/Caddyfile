@@ -1,0 +1,10 @@
+# Caddy in front of headscale (127.0.0.1:8080) and meshpanel (127.0.0.1:8030).
+# The phone sign-in pages (/register/*, /auth/*) and the dashboard (/admin)
+# go to meshpanel; everything else, including Tailscale's control protocol,
+# goes to headscale as before.
+headscale.example.com {
+	@meshpanel path /register/* /auth/* /admin /admin/*
+	reverse_proxy @meshpanel 127.0.0.1:8030
+
+	reverse_proxy 127.0.0.1:8080
+}

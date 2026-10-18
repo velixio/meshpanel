@@ -1,5 +1,5 @@
 {{define "head"}}<!doctype html>
-<html lang="en" data-theme="{{.Theme}}" data-base="{{.Base}}" data-csrf="{{.CSRF}}"{{if .Me}} data-me="{{.Me.Username}}"{{end}}{{if .Brand.Accent}} style="--accent: {{.Brand.Accent}}; --accent-fg: {{.Brand.AccentFG}};"{{end}}>
+<html lang="en" data-theme="{{.Theme}}" data-base="{{.Base}}" data-csrf="{{.CSRF}}" data-v="{{.AssetV}}"{{if .Me}} data-me="{{.Me.Username}}"{{end}}{{if .Brand.Accent}} style="--accent: {{.Brand.Accent}}; --accent-fg: {{.Brand.AccentFG}};"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -7,11 +7,11 @@
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"historyCacheSize":0,"refreshOnHistoryMiss":true}'>
 <title>{{if .Title}}{{.Title}} · {{end}}{{.Brand.Name}}</title>
 <link rel="icon" href="{{.Base}}/static/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="{{.Base}}/static/css/tokens.css">
-<link rel="stylesheet" href="{{.Base}}/static/css/app.css">
-<script src="{{.Base}}/static/js/htmx.min.js" defer></script>
-<script src="{{.Base}}/static/js/app.js" defer></script>
-<script src="{{.Base}}/static/js/editor.js" defer></script>
+<link rel="stylesheet" href="{{.Base}}/static/css/tokens.css?v={{.AssetV}}">
+<link rel="stylesheet" href="{{.Base}}/static/css/app.css?v={{.AssetV}}">
+<script src="{{.Base}}/static/js/htmx.min.js?v={{.AssetV}}" defer></script>
+<script src="{{.Base}}/static/js/app.js?v={{.AssetV}}" defer></script>
+<script src="{{.Base}}/static/js/editor.js?v={{.AssetV}}" defer></script>
 </head>{{end}}
 
 {{define "mark"}}<span class="mark">{{if .Brand.Logo}}<img src="{{.Brand.Logo}}" alt="">{{else}}{{icon "mesh"}}{{end}}</span>{{end}}

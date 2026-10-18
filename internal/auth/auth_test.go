@@ -15,7 +15,7 @@ func TestPasswordRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(h, "$argon2id$v=19$m=65536,t=3,p=2$") {
+	if !strings.HasPrefix(h, "$argon2id$v=19$m=19456,t=2,p=1$") {
 		t.Fatalf("hash format %q", h)
 	}
 	if !VerifyPassword(h, "correct horse battery") || VerifyPassword(h, "wrong") {

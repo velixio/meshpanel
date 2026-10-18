@@ -5,6 +5,7 @@
   const doc = document.documentElement;
   const base = doc.dataset.base || "/admin";
   const csrf = doc.dataset.csrf || "";
+  const icons = base + "/static/icons.svg?v=" + (doc.dataset.v || "");
 
   // Every htmx request carries the CSRF token.
   document.addEventListener("htmx:configRequest", (e) => {
@@ -92,7 +93,7 @@
     const t = document.createElement("div");
     t.className = "toast " + (kind || "ok");
     t.setAttribute("role", "status");
-    t.innerHTML = '<svg class="icon"><use href="' + base + '/static/icons.svg#' + (kind === "danger" ? "alert" : "check") + '"/></svg><div></div>';
+    t.innerHTML = '<svg class="icon"><use href="' + icons + '#' + (kind === "danger" ? "alert" : "check") + '"/></svg><div></div>';
     t.lastChild.textContent = msg;
     zone.appendChild(t);
     setTimeout(() => { t.classList.add("leaving"); setTimeout(() => t.remove(), 300); }, kind === "danger" ? 7000 : 3500);
@@ -243,7 +244,7 @@
       const d = document.createElement("div");
       d.className = "res" + (i === sel ? " sel" : "");
       d.dataset.i = i;
-      d.innerHTML = '<svg class="icon"><use href="' + base + "/static/icons.svg#" + (r.icon || "chev") + '"/></svg><span></span><span class="sub"></span>';
+      d.innerHTML = '<svg class="icon"><use href="' + icons + "#" + (r.icon || "chev") + '"/></svg><span></span><span class="sub"></span>';
       d.children[1].textContent = r.label;
       d.children[2].textContent = r.sub || "";
       palList.appendChild(d);

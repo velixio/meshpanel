@@ -1,0 +1,53 @@
+version: 2
+project_name: meshpanel
+
+builds:
+  - main: ./cmd/meshpanel
+    env: [CGO_ENABLED=0]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{ .Version }}"]
+    goos: [linux]
+    goarch: [amd64, arm64, arm]
+    goarm: ["7"]
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+    files:
+      - LICENSE
+      - README.md
+      - THIRD_PARTY_NOTICES.md
+      - deploy/*
+
+nfpms:
+  - package_name: meshpanel
+    homepage: https://github.com/meshpanel/meshpanel
+    maintainer: meshpanel contributors
+    description: Control panel for headscale with device approvals over the web and Telegram.
+    license: MIT
+    formats: [deb, rpm]
+    bindir: /usr/bin
+    contents:
+      - src: deploy/meshpanel.service
+        dst: /usr/lib/systemd/system/meshpanel.service
+      - src: deploy/config.example.yaml
+        dst: /etc/meshpanel/config.yaml
+        type: config|noreplace
+        file_info:
+          mode: 0640
+      - src: deploy/sudoers
+        dst: /usr/share/doc/meshpanel/sudoers.example
+      - src: deploy/Caddyfile
+        dst: /usr/share/doc/meshpanel/Caddyfile.example
+      - src: deploy/nginx.conf
+        dst: /usr/share/doc/meshpanel/nginx.conf.example
+    scripts:
+      postinstall: scripts/postinstall.sh
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^test:"]

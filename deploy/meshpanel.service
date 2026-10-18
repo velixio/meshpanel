@@ -1,0 +1,41 @@
+[Unit]
+Description=meshpanel: control panel for headscale
+Documentation=https://github.com/meshpanel/meshpanel
+After=network-online.target headscale.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=meshpanel
+Group=meshpanel
+# Access to headscale's unix socket (unix_socket_permission "0770").
+SupplementaryGroups=headscale
+ExecStart=/usr/bin/meshpanel serve -c /etc/meshpanel/config.yaml
+Restart=on-failure
+RestartSec=3
+StateDirectory=meshpanel
+StateDirectoryMode=0750
+
+# Hardening. meshpanel only needs its state directory, headscale's socket and,
+# for DNS/policy editing, write access to /etc/headscale.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/meshpanel -/etc/headscale -/var/run/headscale
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=no
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+# NoNewPrivileges must stay off while restart_command uses sudo. If you use
+# the polkit rule from docs/install.md instead (restart_command:
+# "systemctl restart headscale"), set NoNewPrivileges=yes.
+NoNewPrivileges=no
+
+[Install]
+WantedBy=multi-user.target
