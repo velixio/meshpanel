@@ -109,7 +109,9 @@ func RouteRisk(r string) string {
 	return ""
 }
 
-func (n *Node) KeyExpired(now time.Time) bool { return n.Expiry != nil && !n.Expiry.IsZero() && n.Expiry.Before(now) }
+func (n *Node) KeyExpired(now time.Time) bool {
+	return n.Expiry != nil && !n.Expiry.IsZero() && n.Expiry.Before(now)
+}
 
 type PreAuthKey struct {
 	ID         string    `json:"id"`
