@@ -92,7 +92,9 @@ type apiResp struct {
 // RetryAfterError is Telegram's 429 flood control.
 type RetryAfterError struct{ After time.Duration }
 
-func (e *RetryAfterError) Error() string { return fmt.Sprintf("telegram rate limit, retry after %s", e.After) }
+func (e *RetryAfterError) Error() string {
+	return fmt.Sprintf("telegram rate limit, retry after %s", e.After)
+}
 
 func (a *API) call(ctx context.Context, method string, params any, out any) error {
 	b, err := json.Marshal(params)
