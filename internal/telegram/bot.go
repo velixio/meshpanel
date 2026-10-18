@@ -399,6 +399,13 @@ func (b *Bot) handleCallback(ctx context.Context, cb *CallbackQuery) {
 		b.answer(ctx, cb.ID, "You don't have permission to approve this request.", true)
 		return
 	}
+	if act.Kind == "pick" || act.Kind == "as_user" {
+		caps := perm.Effective(acc.Role, perm.Cap(acc.ExtraCaps))
+		if !perm.CanApproveAs(caps, acc.HSUser, p.HSUser, act.Arg) || (act.Kind == "pick" && !caps.Has(perm.ApproveDevices)) {
+			b.answer(ctx, cb.ID, "Only full approvers can register a device under another user.", true)
+			return
+		}
+	}
 	switch act.Kind {
 	case "pick":
 		b.sendUserPicker(ctx, p, cb)

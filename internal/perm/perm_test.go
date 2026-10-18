@@ -90,3 +90,13 @@ func TestParseNames(t *testing.T) {
 		t.Fatal(c.Names())
 	}
 }
+
+func TestCanApproveAsOtherUser(t *testing.T) {
+	own := Effective("member", ApproveDevicesOwn)
+	if CanApproveAs(own, "ravi", "ravi", "office") || !CanApproveAs(own, "ravi", "ravi", "ravi") || !CanApproveAs(own, "ravi", "ravi", "") {
+		t.Fatal("own-only approver may only keep their own user")
+	}
+	if !CanApproveAs(Effective("admin", 0), "anna", "ravi", "office") {
+		t.Fatal("admin picks any user")
+	}
+}

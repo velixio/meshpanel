@@ -184,6 +184,15 @@ func CanApprove(caps Cap, approverHSUser, requesterHSUser string) bool {
 	return caps.Has(ApproveDevicesOwn) && approverHSUser != "" && approverHSUser == requesterHSUser
 }
 
+// CanApproveAs extends CanApprove for "approve as another user": choosing
+// a different headscale user than the requester's needs approve_devices.
+func CanApproveAs(caps Cap, approverHSUser, requesterHSUser, asHSUser string) bool {
+	if asHSUser != "" && asHSUser != requesterHSUser {
+		return caps.Has(ApproveDevices)
+	}
+	return CanApprove(caps, approverHSUser, requesterHSUser)
+}
+
 // CanManageNode: write_machines, or the device's own user.
 func CanManageNode(caps Cap, hsUser string, n hs.Node) bool {
 	if caps.Has(WriteMachines) {

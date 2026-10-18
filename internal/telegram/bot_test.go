@@ -14,6 +14,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/db"
 	"github.com/meshpanel/meshpanel/internal/events"
 	"github.com/meshpanel/meshpanel/internal/hs"
+	"github.com/meshpanel/meshpanel/internal/perm"
 	"github.com/meshpanel/meshpanel/internal/registration"
 )
 
@@ -251,5 +252,25 @@ func TestCardEscapesHTML(t *testing.T) {
 	}
 	if !strings.Contains(txt, "iPhone") || !strings.Contains(txt, "49.36.1.2") {
 		t.Fatalf("missing context: %q", txt)
+	}
+}
+
+func TestOwnApproverCannotApproveAsOtherUser(t *testing.T) {
+	v := setup(t)
+	ctx := context.Background()
+	v.ravi.ExtraCaps = uint64(perm.ApproveDevicesOwn)
+	v.d.UpdateAccount(ctx, v.ravi)
+	v.d.LinkChat(ctx, v.ravi.ID, 1000, "@ravi")
+	p := v.pending(t)
+	act := v.bot.newAction(ctx, "as_user", p, "office")
+	tap(v, 1000, act)
+	if v.hs.calls != 0 {
+		t.Fatal("own-only approver registered a device under another user")
+	}
+	pick := v.bot.newAction(ctx, "pick", p, "")
+	before := len(v.tg.byMethod("sendMessage"))
+	tap(v, 1000, pick)
+	if len(v.tg.byMethod("sendMessage")) != before {
+		t.Fatal("own-only approver got the user picker")
 	}
 }
