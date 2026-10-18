@@ -327,6 +327,17 @@ func (s *Server) funcs() template.FuncMap {
 			return false
 		},
 		"risk": hs.RouteRisk,
+		"method": func(m string) string {
+			switch m {
+			case "REGISTER_METHOD_AUTH_KEY":
+				return "pre-auth key"
+			case "REGISTER_METHOD_CLI":
+				return "approval"
+			case "REGISTER_METHOD_OIDC":
+				return "OIDC"
+			}
+			return "unknown"
+		},
 		"ip": func(n hs.Node) string {
 			if len(n.IPAddresses) > 0 {
 				return n.IPAddresses[0]

@@ -1,2 +1,5 @@
 .superpowers
 info
+.playwright-mcp/
+/meshpanel
+/dist/

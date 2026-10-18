@@ -72,7 +72,7 @@ func (s *Server) machines(w http.ResponseWriter, r *http.Request) {
 			d.Counts[k]++
 		}
 		row := machineRow{Node: n, State: st}
-		if a, ok := owners[n.UserName()]; ok {
+		if a, ok := owners[n.UserName()]; ok && a.Name() != n.UserName() {
 			row.Owner = a.Name()
 		}
 		row.Search = strings.ToLower(strings.Join(append([]string{n.DisplayName(), n.Name, n.UserName(), row.Owner, strings.Join(n.Tags, " ")}, n.IPAddresses...), " "))

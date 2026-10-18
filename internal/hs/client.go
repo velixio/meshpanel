@@ -167,8 +167,12 @@ func (c *Client) Version(ctx context.Context) (string, error) {
 	var v struct {
 		Version string `json:"version"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&v); err != nil {
-		return "", fmt.Errorf("reading headscale version: %w", err)
+	notHS := fmt.Errorf("%s/version did not answer like headscale (HTTP %d); is headscale.http_url headscale's listen_addr?", c.httpURL, resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return "", notHS
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<16)).Decode(&v); err != nil || v.Version == "" {
+		return "", notHS
 	}
 	return v.Version, nil
 }

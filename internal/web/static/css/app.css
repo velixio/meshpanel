@@ -64,7 +64,7 @@ hr { border: 0; border-top: 1px var(--border-style) var(--border); margin: var(-
   border-bottom: 1px var(--border-style) transparent;
 }
 .top.scrolled { border-bottom-color: var(--border); }
-.menu-btn { display: none; }
+.top .menu-btn { display: none; }
 .search-btn {
   display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; min-width: 260px;
   border: 1px var(--border-style) var(--border); background: var(--surface); color: var(--text-3);
@@ -86,7 +86,7 @@ hr { border: 0; border-top: 1px var(--border-style) var(--border); margin: var(-
 .card > .hd { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px var(--pad); border-bottom: 1px var(--border-style) var(--border); }
 .card > .hd .hint { color: var(--text-2); font-size: 12.5px; }
 .card > .bd { padding: var(--pad); }
-.card > .ft { padding: 12px var(--pad); border-top: 1px var(--border-style) var(--border); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface-2); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.card > .ft, .card > form > .ft { padding: 12px var(--pad); border-top: 1px var(--border-style) var(--border); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface-2); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
 .card.flat { box-shadow: none; }
 .grid { display: grid; gap: var(--gap); }
 .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -296,7 +296,7 @@ kbd { font-size: 11px; padding: 1px 5px; border-radius: 4px; border: 1px var(--b
 
 /* ---------- theme picker ---------- */
 .themes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.theme-opt { border: 2px solid var(--border); border-radius: var(--radius); padding: 6px; cursor: pointer; background: var(--surface); }
+.theme-opt { position: relative; border: 2px solid var(--border); border-radius: var(--radius); padding: 6px; cursor: pointer; background: var(--surface); }
 .theme-opt:has(input:checked) { border-color: var(--accent); }
 .theme-opt input { position: absolute; opacity: 0; pointer-events: none; }
 .theme-opt .sw { height: 64px; border-radius: 6px; display: flex; overflow: hidden; border: 1px solid rgba(0,0,0,.08); }
@@ -332,7 +332,7 @@ kbd { font-size: 11px; padding: 1px 5px; border-radius: 4px; border: 1px var(--b
   .side { position: fixed; z-index: 70; left: 0; top: 0; width: 264px; transform: translateX(-100%); transition: transform .2s ease; box-shadow: var(--shadow-lg); }
   body.nav-open .side { transform: none; }
   body.nav-open::after { content: ""; position: fixed; inset: 0; background: var(--overlay); z-index: 60; }
-  .menu-btn { display: inline-flex; }
+  .top .menu-btn { display: inline-flex; }
   .top { padding: 0 16px; }
   .search-btn { min-width: 0; flex: 1; }
   .search-btn kbd, .health .txt { display: none; }

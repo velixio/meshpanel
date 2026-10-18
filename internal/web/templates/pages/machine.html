@@ -19,7 +19,7 @@
           <dt>Tailscale IPs</dt><dd class="mono">{{range $n.IPAddresses}}<div class="row">{{.}} <button class="btn ghost sm icon-only" data-copy="{{.}}" aria-label="Copy">{{icon "copy"}}</button></div>{{end}}</dd>
           <dt>Hostname</dt><dd class="mono">{{$n.Name}}</dd>
           <dt>Last seen</dt><dd>{{if $n.Online}}Now{{else}}{{date $n.LastSeen}}{{end}}</dd>
-          <dt>Registered</dt><dd>{{date $n.CreatedAt}} <span class="faint small">via {{lower $n.RegisterMethod}}</span></dd>
+          <dt>Registered</dt><dd>{{date $n.CreatedAt}} <span class="faint small">via {{method $n.RegisterMethod}}</span></dd>
           <dt>Key expiry</dt><dd>{{if $n.Expiry}}{{date $n.Expiry}} <span class="muted">({{until $n.Expiry}})</span>{{else}}Never{{end}}</dd>
           {{if $n.Tags}}<dt>Tags</dt><dd class="row">{{template "tags" $n.Tags}}</dd>{{end}}
           <dt>Node key</dt><dd class="mono small faint ellipsis">{{$n.NodeKey}}</dd>

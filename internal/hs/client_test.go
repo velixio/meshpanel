@@ -7,8 +7,10 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -154,5 +156,19 @@ func TestValidAuthID(t *testing.T) {
 		if ValidAuthID(s) {
 			t.Fatalf("%q accepted", s)
 		}
+	}
+}
+
+func TestVersionNotHeadscale(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "42") }))
+	defer srv.Close()
+	_, err := New("/nonexistent", srv.URL).Version(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "did not answer like headscale") {
+		t.Fatalf("err = %v", err)
+	}
+	ok := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, `{"version":"0.30.0","commit":"x"}`) }))
+	defer ok.Close()
+	if v, err := New("/nonexistent", ok.URL).Version(context.Background()); err != nil || v != "0.30.0" {
+		t.Fatalf("%q %v", v, err)
 	}
 }
