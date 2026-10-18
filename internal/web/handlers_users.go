@@ -161,7 +161,7 @@ func (s *Server) peopleData(r *http.Request) peopleData {
 func (s *Server) assignableRoles(id *identity) []string {
 	var out []string
 	for _, r := range perm.RoleOrder {
-		if r == "owner" && !id.Caps.Has(perm.Owner) {
+		if !perm.Within(perm.Roles[r], id.Caps) {
 			continue
 		}
 		out = append(out, r)
@@ -194,8 +194,8 @@ func (s *Server) inviteCreate(w http.ResponseWriter, r *http.Request) {
 		s.failed(w, r, "", errors.New("usernames are 2–32 lowercase letters, digits, dot, dash or underscore"))
 		return
 	}
-	if !perm.ValidRole(role) || (role == "owner" && !id.Caps.Has(perm.Owner)) {
-		s.failed(w, r, "", errors.New("you can't give that role"))
+	if !perm.ValidRole(role) || !perm.Within(perm.Roles[role], id.Caps) {
+		s.failed(w, r, "", errors.New("you can't give a role with more permissions than your own"))
 		return
 	}
 	if _, err := s.DB.GetAccountByUsername(ctx, username); err == nil {
@@ -253,9 +253,10 @@ func (s *Server) loadPerson(w http.ResponseWriter, r *http.Request) (*db.Account
 		s.renderError(w, r, http.StatusNotFound, "Person not found", "")
 		return nil, false
 	}
-	// Only owners may manage owners.
-	if acc.Role == "owner" && !who(r).Caps.Has(perm.Owner) {
-		s.renderError(w, r, http.StatusForbidden, "Not allowed", "Only owners can change other owners.")
+	// Nobody manages an account more powerful than their own.
+	id := who(r)
+	if acc.ID != id.Account.ID && !perm.Within(perm.Effective(acc.Role, perm.Cap(acc.ExtraCaps)), id.Caps) {
+		s.renderError(w, r, http.StatusForbidden, "Not allowed", "This person has permissions you don't, so only someone with at least their access can change their account.")
 		return nil, false
 	}
 	return acc, true
@@ -288,8 +289,8 @@ func (s *Server) personAction(w http.ResponseWriter, r *http.Request) {
 	switch r.PathValue("action") {
 	case "role":
 		role := r.PostFormValue("role")
-		if !perm.ValidRole(role) || (role == "owner" && !id.Caps.Has(perm.Owner)) {
-			s.failed(w, r, here, errors.New("you can't give that role"))
+		if !perm.ValidRole(role) || !perm.Within(perm.Roles[role], id.Caps) {
+			s.failed(w, r, here, errors.New("you can't give a role with more permissions than your own"))
 			return
 		}
 		if err := s.DB.SetRole(ctx, acc.ID, role); err != nil {
