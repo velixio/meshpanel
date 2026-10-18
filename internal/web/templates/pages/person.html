@@ -46,15 +46,15 @@
         <div class="row between"><span>Active sessions</span><span>{{len $d.Sessions}}</span></div>
         <hr style="margin:4px 0">
         <form method="post" action="{{.Base}}/people/{{$a.ID}}/sessions">{{template "csrf" .CSRF}}<button class="btn block">{{icon "logout"}}Sign out everywhere</button></form>
-        <form method="post" action="{{.Base}}/people/{{$a.ID}}/reset2fa" data-confirm="Reset two-factor for {{$a.Username}}? They must set it up again at next sign-in.">{{template "csrf" .CSRF}}<button class="btn block">{{icon "lock"}}Reset two-factor</button></form>
+        <form method="post" action="{{.Base}}/people/{{$a.ID}}/reset2fa" hx-confirm="Reset two-factor for {{$a.Username}}? They must set it up again at next sign-in.">{{template "csrf" .CSRF}}<button class="btn block">{{icon "lock"}}Reset two-factor</button></form>
         <details><summary class="btn block">{{icon "key"}}Set a new password</summary>
           <form class="stack mt" method="post" action="{{.Base}}/people/{{$a.ID}}/password">{{template "csrf" .CSRF}}<input class="input" type="password" name="password" minlength="10" autocomplete="new-password" placeholder="At least 10 characters" required><button class="btn">Set password</button></form>
         </details>
         {{if not $d.IsMe}}
         <hr style="margin:4px 0">
         {{if $a.Disabled}}<form method="post" action="{{.Base}}/people/{{$a.ID}}/enable">{{template "csrf" .CSRF}}<button class="btn ok block">Enable account</button></form>
-        {{else}}<form method="post" action="{{.Base}}/people/{{$a.ID}}/disable" data-confirm="Disable {{$a.Username}}? They are signed out immediately.">{{template "csrf" .CSRF}}<button class="btn block">{{icon "power"}}Disable account</button></form>{{end}}
-        <form method="post" action="{{.Base}}/people/{{$a.ID}}/delete" data-confirm="Delete {{$a.Username}}'s panel account? Their devices stay.">{{template "csrf" .CSRF}}<button class="btn danger block">{{icon "trash"}}Delete account</button></form>
+        {{else}}<form method="post" action="{{.Base}}/people/{{$a.ID}}/disable" hx-confirm="Disable {{$a.Username}}? They are signed out immediately.">{{template "csrf" .CSRF}}<button class="btn block">{{icon "power"}}Disable account</button></form>{{end}}
+        <form method="post" action="{{.Base}}/people/{{$a.ID}}/delete" hx-confirm="Delete {{$a.Username}}'s panel account? Their devices stay.">{{template "csrf" .CSRF}}<button class="btn danger block">{{icon "trash"}}Delete account</button></form>
         {{end}}
       </div>
     </section>

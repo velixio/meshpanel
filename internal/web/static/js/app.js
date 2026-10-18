@@ -106,10 +106,13 @@
   }
 
   // ---------- confirm / copy / misc ----------
+  // Boosted forms confirm through htmx's hx-confirm; this covers forms htmx
+  // doesn't handle (hx-boost="false") and the no-htmx fallback.
   document.addEventListener("submit", (e) => {
     const f = e.target;
-    const msg = f.dataset.confirm || (e.submitter && e.submitter.dataset.confirm);
-    if (msg && !window.confirm(msg)) e.preventDefault();
+    const boosted = window.htmx && f.closest("[hx-boost=true]") && !f.closest("[hx-boost=false]");
+    const msg = f.getAttribute("hx-confirm");
+    if (msg && !boosted && !window.confirm(msg)) e.preventDefault();
   }, true);
 
   document.addEventListener("click", (e) => {

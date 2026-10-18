@@ -22,7 +22,7 @@
                   <button class="btn sm">Rename</button>
                 </form>
                 <hr>
-                <form method="post" action="{{$p.Base}}/users/{{.ID}}/delete" data-confirm="Delete headscale user {{.Name}}?">{{template "csrf" $p.CSRF}}
+                <form method="post" action="{{$p.Base}}/users/{{.ID}}/delete" hx-confirm="Delete headscale user {{.Name}}?">{{template "csrf" $p.CSRF}}
                   <button class="btn danger sm block" {{if .Nodes}}disabled title="Has devices"{{end}}>{{icon "trash"}}Delete user</button>
                 </form>
               </div>
