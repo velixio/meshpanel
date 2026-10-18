@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -19,10 +20,12 @@ const MinPasswordLen = 10
 
 var ErrPasswordTooShort = fmt.Errorf("password must be at least %d characters", MinPasswordLen)
 
+// OWASP's recommended argon2id baseline (19 MiB, 2 passes, 1 lane). Kept
+// modest so a burst of logins doesn't balloon the panel's memory.
 const (
-	argonTime    = 3
-	argonMemory  = 64 * 1024
-	argonThreads = 2
+	argonTime    = 2
+	argonMemory  = 19 * 1024
+	argonThreads = 1
 	argonKeyLen  = 32
 )
 
@@ -42,14 +45,18 @@ func HashPassword(pw string) (string, error) {
 }
 
 // dummyHash is verified against when an account doesn't exist, so a missing
-// username costs the same time as a wrong password.
-var dummyHash, _ = HashPassword("meshpanel-timing-equalizer")
+// username costs the same time as a wrong password. Built on first use.
+var (
+	dummyOnce sync.Once
+	dummyHash string
+)
 
 // VerifyPassword reports whether pw matches hash. An empty hash verifies
 // against a dummy to keep timing uniform, and always fails.
 func VerifyPassword(hash, pw string) bool {
 	ok := verify(hash, pw)
 	if hash == "" {
+		dummyOnce.Do(func() { dummyHash, _ = HashPassword("meshpanel-timing-equalizer") })
 		verify(dummyHash, pw)
 		return false
 	}

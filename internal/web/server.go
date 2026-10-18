@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -89,10 +90,16 @@ type Server struct {
 	tmpl    *templates
 	static  http.Handler
 	start   time.Time
+	assetV  string
 }
 
 func New(d Deps) (*Server, error) {
 	s := &Server{Deps: d, base: d.Cfg.Server.BasePath, start: time.Now()}
+	// Asset URLs change with every release (and every restart of dev builds).
+	s.assetV = d.Version
+	if s.assetV == "" || s.assetV == "dev" {
+		s.assetV = strconv.FormatInt(s.start.Unix(), 36)
+	}
 	for _, p := range d.Cfg.Server.TrustedProxies {
 		if !strings.Contains(p, "/") {
 			if a, err := netip.ParseAddr(p); err == nil {
@@ -112,7 +119,7 @@ func New(d Deps) (*Server, error) {
 	sub, _ := fs.Sub(assets, "static")
 	fsrv := http.StripPrefix(s.base+"/static/", http.FileServer(http.FS(sub)))
 	s.static = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", "public, max-age=604800, immutable")
 		fsrv.ServeHTTP(w, r)
 	})
 	return s, nil

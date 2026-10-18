@@ -133,13 +133,14 @@ type Page struct {
 	HSError      string
 	PublicURL    string
 	Version      string
+	AssetV       string
 	Data         any
 }
 
 func (s *Server) page(w http.ResponseWriter, r *http.Request, nav, title string, data any) *Page {
 	p := &Page{
 		Title: title, Nav: nav, CSRF: s.csrfToken(w, r), Base: s.base, Theme: "paper",
-		Brand: s.brand(r.Context()), PublicURL: s.Cfg.Server.PublicURL, Version: s.Version, Data: data, Healthy: true,
+		Brand: s.brand(r.Context()), PublicURL: s.Cfg.Server.PublicURL, Version: s.Version, AssetV: s.assetV, Data: data, Healthy: true,
 	}
 	if id := who(r); id != nil {
 		p.Me, p.Caps, p.Scope = id.Account, id.Caps, id.Scope
@@ -302,7 +303,7 @@ func qrDataURI(text string) template.URL {
 func (s *Server) funcs() template.FuncMap {
 	return template.FuncMap{
 		"icon": func(name string) template.HTML {
-			return template.HTML(`<svg class="icon" aria-hidden="true"><use href="` + s.base + `/static/icons.svg#` + template.HTMLEscapeString(name) + `"/></svg>`)
+			return template.HTML(`<svg class="icon" aria-hidden="true"><use href="` + s.base + `/static/icons.svg?v=` + s.assetV + `#` + template.HTMLEscapeString(name) + `"/></svg>`)
 		},
 		"has":  func(c perm.Cap, name string) bool { return c.Has(perm.Parse([]string{name})) },
 		"ago":  func(t any) string { return ago(toTime(t), time.Now()) },
