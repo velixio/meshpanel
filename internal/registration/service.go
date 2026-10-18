@@ -132,11 +132,12 @@ func (s *Service) Decide(ctx context.Context, id int64, approve bool, actor *db.
 	var nodeName, nodeIP string
 	var callErr error
 	switch {
-	case !approve && p.Kind == KindSSH:
-		callErr = s.hs.AuthReject(hctx, p.AuthID)
 	case !approve:
-		// headscale has no reject for /register; the client's request simply
-		// times out. Nothing to call.
+		// Rejecting tells the waiting client right away. A request headscale
+		// already dropped (404) is fine: the outcome is the same.
+		if err := s.hs.AuthReject(hctx, p.AuthID); err != nil && !hs.IsNotFound(err) {
+			callErr = err
+		}
 	case p.Kind == KindSSH:
 		callErr = s.hs.AuthApprove(hctx, p.AuthID)
 	default:
