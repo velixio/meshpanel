@@ -1,0 +1,102 @@
+<h2>Which look feels right for the control panel?</h2>
+<p class="subtitle">Same dashboard, three visual directions. Click the one you like (you can mix: "A's colors with B's layout").</p>
+
+<style>
+  .mini{border-radius:12px;overflow:hidden;font:13px/1.4 Inter,system-ui,sans-serif;height:330px;display:flex}
+  .mini .side{width:150px;padding:14px 10px;display:flex;flex-direction:column;gap:4px}
+  .mini .side .brand{font-weight:700;font-size:14px;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .mini .side .dot{width:18px;height:18px;border-radius:6px}
+  .mini .side .it{padding:6px 8px;border-radius:7px}
+  .mini .main{flex:1;padding:16px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+  .mini .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .mini .stat{padding:10px;border-radius:10px}
+  .mini .stat b{display:block;font-size:20px}
+  .mini .row{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px}
+  .mini .st{width:8px;height:8px;border-radius:50%}
+  .mini .pill{margin-left:auto;font-size:11px;padding:2px 8px;border-radius:99px}
+  .mini .btn{font-size:11px;padding:3px 9px;border-radius:6px;font-weight:600}
+
+  /* A — Midnight */
+  .a{background:#0b0d12;color:#e6e8ee}
+  .a .side{background:#0f1218;border-right:1px solid #1d2230}
+  .a .side .dot{background:linear-gradient(135deg,#7c5cff,#4f8cff)}
+  .a .side .it{color:#9aa3b5}.a .side .it.on{background:#1a1f2c;color:#fff}
+  .a .stat{background:#121622;border:1px solid #1d2230}.a .stat span{color:#8a93a6}
+  .a .row{background:#121622;border:1px solid #1d2230}
+  .a .pill{background:#2a2140;color:#c4b5ff}
+  .a .btn{background:#7c5cff;color:#fff}
+
+  /* B — Paper */
+  .b{background:#f7f7f5;color:#1c1c1a}
+  .b .side{background:#fff;border-right:1px solid #e8e7e3}
+  .b .side .dot{background:#1c1c1a}
+  .b .side .it{color:#6b6a65}.b .side .it.on{background:#f0efeb;color:#1c1c1a;font-weight:600}
+  .b .stat{background:#fff;border:1px solid #e8e7e3}.b .stat span{color:#7a7973}
+  .b .row{background:#fff;border:1px solid #e8e7e3}
+  .b .pill{background:#fff4e0;color:#9a5b00}
+  .b .btn{background:#1c1c1a;color:#fff}
+
+  /* C — Console */
+  .c{background:#0a0f0d;color:#c9f5dc;font-family:ui-monospace,"JetBrains Mono",monospace;font-size:12px}
+  .c .side{background:#0a0f0d;border-right:1px dashed #1e3a2c}
+  .c .side .dot{background:#3ddc84;border-radius:3px}
+  .c .side .it{color:#6fae8a}.c .side .it.on{color:#0a0f0d;background:#3ddc84}
+  .c .stat{border:1px dashed #1e3a2c}.c .stat span{color:#6fae8a}
+  .c .row{border-bottom:1px dashed #1e3a2c;border-radius:0}
+  .c .pill{border:1px solid #e5c07b;color:#e5c07b}
+  .c .btn{border:1px solid #3ddc84;color:#3ddc84}
+</style>
+
+<div class="cards">
+  <div class="card" data-choice="a-midnight" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini a">
+        <div class="side"><div class="brand"><span class="dot"></span>meshpanel</div>
+          <div class="it on">Overview</div><div class="it">Machines</div><div class="it">Users</div><div class="it">Access</div><div class="it">DNS</div><div class="it">Alerts</div><div class="it">Audit</div></div>
+        <div class="main">
+          <div class="stats"><div class="stat"><span>Online</span><b>42</b></div><div class="stat"><span>Offline</span><b>7</b></div><div class="stat"><span>Pending</span><b style="color:#c4b5ff">2</b></div></div>
+          <div class="row"><span class="st" style="background:#f5b84f"></span>ravi · iPhone 15<span class="pill">awaiting approval</span><span class="btn">Approve</span></div>
+          <div class="row"><span class="st" style="background:#3ecf8e"></span>build-server-01<span class="pill" style="background:#13281f;color:#6ee7b7">exit node</span></div>
+          <div class="row"><span class="st" style="background:#3ecf8e"></span>anna · MacBook Pro</div>
+          <div class="row"><span class="st" style="background:#59607a"></span>office-printer<span class="pill" style="background:#1d2230;color:#8a93a6">2h ago</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body"><h3>A · Midnight</h3><p>Dark-first, violet accent, soft cards. Linear / Vercel feel. Has a matching light mode.</p></div>
+  </div>
+
+  <div class="card" data-choice="b-paper" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini b">
+        <div class="side"><div class="brand"><span class="dot"></span>meshpanel</div>
+          <div class="it on">Overview</div><div class="it">Machines</div><div class="it">Users</div><div class="it">Access</div><div class="it">DNS</div><div class="it">Alerts</div><div class="it">Audit</div></div>
+        <div class="main">
+          <div class="stats"><div class="stat"><span>Online</span><b>42</b></div><div class="stat"><span>Offline</span><b>7</b></div><div class="stat"><span>Pending</span><b style="color:#9a5b00">2</b></div></div>
+          <div class="row"><span class="st" style="background:#e8a33d"></span>ravi · iPhone 15<span class="pill">awaiting approval</span><span class="btn">Approve</span></div>
+          <div class="row"><span class="st" style="background:#2f9e5b"></span>build-server-01<span class="pill" style="background:#e9f6ee;color:#1f7a45">exit node</span></div>
+          <div class="row"><span class="st" style="background:#2f9e5b"></span>anna · MacBook Pro</div>
+          <div class="row"><span class="st" style="background:#c9c8c2"></span>office-printer<span class="pill" style="background:#f0efeb;color:#7a7973">2h ago</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body"><h3>B · Paper</h3><p>Light-first, warm neutrals, near-black accent. Tailscale-admin / Notion calm. Has a matching dark mode.</p></div>
+  </div>
+
+  <div class="card" data-choice="c-console" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mini c">
+        <div class="side"><div class="brand"><span class="dot"></span>meshpanel</div>
+          <div class="it on">&gt; overview</div><div class="it">machines</div><div class="it">users</div><div class="it">access</div><div class="it">dns</div><div class="it">alerts</div><div class="it">audit</div></div>
+        <div class="main">
+          <div class="stats"><div class="stat"><span>online</span><b>42</b></div><div class="stat"><span>offline</span><b>7</b></div><div class="stat"><span>pending</span><b style="color:#e5c07b">2</b></div></div>
+          <div class="row"><span class="st" style="background:#e5c07b"></span>ravi/iphone-15<span class="pill">PENDING</span><span class="btn">[approve]</span></div>
+          <div class="row"><span class="st" style="background:#3ddc84"></span>build-server-01<span class="pill" style="border-color:#3ddc84;color:#3ddc84">EXIT</span></div>
+          <div class="row"><span class="st" style="background:#3ddc84"></span>anna/macbook-pro</div>
+          <div class="row"><span class="st" style="background:#35524a"></span>office-printer<span class="pill" style="border-color:#35524a;color:#6fae8a">2h</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body"><h3>C · Console</h3><p>Monospace, terminal-green, dense. Feels like a hacker tool. Dark only.</p></div>
+  </div>
+</div>
+<p class="subtitle">"meshpanel" is a placeholder name.</p>
