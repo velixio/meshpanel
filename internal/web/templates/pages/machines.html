@@ -33,7 +33,7 @@
     </div>
     <input class="input" style="max-width:260px" type="search" placeholder="Filter by name, user, IP, tag…" data-filter="#mt" aria-label="Filter machines">
   </div>
-  <div id="mt-wrap" class="table-wrap" data-live="node changed" hx-get="{{.Base}}/machines" hx-trigger="mp-live" hx-select="#mt-wrap" hx-swap="outerHTML">
+  <div id="mt-wrap" class="table-wrap" data-live="node changed" hx-get="{{.Base}}/machines" hx-trigger="mp-live" hx-disinherit="hx-get hx-select hx-swap hx-trigger" hx-select="#mt-wrap" hx-swap="outerHTML">
   <table class="t" id="mt">
     <thead><tr><th>Machine</th><th class="hide-sm">Address</th><th class="hide-sm">Tags & routes</th><th>Status</th><th class="hide-sm">Key</th></tr></thead>
     <tbody>
