@@ -1,7 +1,10 @@
 package web
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -47,7 +50,7 @@ func TestEveryPageRendersForEveryRole(t *testing.T) {
 	h.d.AddNotification(ctx, reqer.ID, "node_offline", "🔴 ravi-phone went offline")
 	h.d.InsertAudit(ctx, db.AuditEntry{Actor: "x", Channel: "web", Action: "test", Target: "y"})
 	pages := []string{"/admin/", "/admin/machines", "/admin/machines/1", "/admin/users", "/admin/people", "/admin/people/1",
-		"/admin/keys", "/admin/access", "/admin/access?tab=editor", "/admin/dns", "/admin/alerts", "/admin/audit",
+		"/admin/keys", "/admin/machines/new", "/admin/access", "/admin/access?tab=editor", "/admin/dns", "/admin/alerts", "/admin/audit",
 		"/admin/settings", "/admin/account", "/admin/approvals", "/admin/search?q=ra", "/admin/audit.csv"}
 	withSSH(h) // render with the agent and browser SSH turned on
 	pages = append(pages, "/admin/machines/1/ssh")
@@ -270,5 +273,52 @@ func TestRegisterConfirmNeedsCSRF(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != http.StatusForbidden || len(h.hs.registered) != 0 {
 		t.Fatalf("POST without token: %d %v", resp.StatusCode, h.hs.registered)
+	}
+}
+
+func TestDeployGeneratesKeyedCommand(t *testing.T) {
+	h := newHarness(t)
+	h.hs.users = []hs.User{{ID: "1", Name: "ravi"}}
+	_, secret := h.account("anna", "admin", "anna")
+	c := h.client()
+	c.login("anna", secret)
+	code, body, _ := c.post("/admin/machines/new", "/admin/machines/new", url.Values{"hostname": {"web-01"}, "ssh": {"on"}, "auth": {"key"}, "user": {"ravi"}, "expiry_hours": {"24"}})
+	if code != 200 || !strings.Contains(body, "--authkey=newkey0123456789") || !strings.Contains(body, "--hostname=web-01 --ssh") {
+		t.Fatalf("%d", code)
+	}
+	if es, _ := h.d.ListAudit(context.Background(), db.AuditFilter{Query: "key.create"}); len(es) != 1 {
+		t.Fatal("key creation not audited")
+	}
+}
+
+func TestPolicyDownloadAndUpload(t *testing.T) {
+	h := newHarness(t)
+	_, secret := h.account("anna", "admin", "anna")
+	c := h.client()
+	c.login("anna", secret)
+	code, body, hdr := c.get("/admin/access/download")
+	if code != 200 || !strings.Contains(hdr.Get("Content-Disposition"), "attachment") || !strings.Contains(body, "group:eng") {
+		t.Fatalf("download: %d %q", code, hdr.Get("Content-Disposition"))
+	}
+	// Upload goes to the review screen, not straight into headscale.
+	_, page, _ := c.get("/admin/access?tab=editor")
+	tok := csrfRe.FindStringSubmatch(page)[1]
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	mw.WriteField("_csrf", tok)
+	mw.WriteField("op", "upload")
+	fw, _ := mw.CreateFormFile("file", "policy.hujson")
+	fw.Write([]byte(`{"groups": {"group:ops": ["anna@"]}}`))
+	mw.Close()
+	req, _ := http.NewRequest("POST", h.srv.URL+"/admin/access", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := c.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.Contains(string(b), "Review changes") || !strings.Contains(string(b), "group:ops") {
+		t.Fatalf("upload: %d", resp.StatusCode)
 	}
 }

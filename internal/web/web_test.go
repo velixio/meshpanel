@@ -407,8 +407,10 @@ func TestRequestBodyLimited(t *testing.T) {
 
 type downPoller struct{ fakePoller }
 
-func (downPoller) Healthy() bool    { return false }
-func (downPoller) LastError() error { return errors.New("cannot reach headscale socket /run/secret/path.sock") }
+func (downPoller) Healthy() bool { return false }
+func (downPoller) LastError() error {
+	return errors.New("cannot reach headscale socket /run/secret/path.sock")
+}
 
 func TestHeadscaleErrorDetailOnlyForAdmins(t *testing.T) {
 	h := newHarness(t)

@@ -51,7 +51,7 @@
       {{else}}<label class="field">User<select class="input" name="user"><option value="">— none (tags only) —</option>{{range $d.Users}}<option value="{{.Name}}">{{.Name}}</option>{{end}}</select></label>{{end}}
       {{if $d.CanTags}}<label class="field">Tags <span class="help">Optional. Tagged devices are owned by the tags, not a user.</span><input class="input mono" name="tags" placeholder="tag:server"></label>{{end}}
       <label class="field">Valid for
-        <select class="input" name="expiry_hours"><option value="1">1 hour</option><option value="24" selected>1 day</option><option value="168">7 days</option><option value="720">30 days</option><option value="2160">90 days</option></select>
+        <select class="input" name="expiry_hours"><option value="1">1 hour</option><option value="24" selected>1 day</option><option value="168">7 days</option><option value="720">30 days</option><option value="2160">90 days</option><option value="8760">1 year</option></select>
       </label>
       <label class="check"><input type="checkbox" name="reusable"><span>Reusable<span class="help">One key for many devices, until it expires.</span></span></label>
       <label class="check"><input type="checkbox" name="ephemeral"><span>Ephemeral<span class="help">Devices are removed when they go offline. Good for CI and containers.</span></span></label>

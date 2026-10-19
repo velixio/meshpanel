@@ -1,6 +1,10 @@
 {{define "content"}}{{$d := .Data}}{{$p := .}}
 <div class="page-head">
   <div><h1>Access policy</h1><p class="sub">Who can reach what. headscale mode: <b>{{$d.Mode}}</b>.</p></div>
+  <div class="actions">
+    <a class="btn" href="{{.Base}}/access/download" hx-boost="false">{{icon "download"}}Download</a>
+    {{if $d.Writable}}<form method="post" action="{{.Base}}/access" enctype="multipart/form-data" class="inline-form" hx-boost="false">{{template "csrf" .CSRF}}<input type="hidden" name="op" value="upload"><input class="input" type="file" name="file" accept=".hujson,.json,application/json" required style="max-width:220px;padding-top:6px" aria-label="Policy file"><button class="btn">Upload &amp; review</button></form>{{end}}
+  </div>
 </div>
 {{if $d.WhyNot}}<div class="banner info">{{icon "info"}}<div>{{$d.WhyNot}}</div></div><div class="mt"></div>{{end}}
 
