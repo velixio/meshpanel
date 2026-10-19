@@ -168,6 +168,15 @@ web_ssh:
 - **Policy, database mode** (`policy.mode: database`): edits go through headscale's API.
 - **Policy, file mode:** meshpanel writes the policy file and runs `headscale.reload_command`.
 
+### Updating
+
+**Settings → Updates** (owners only) checks GitHub for a newer release. **Install** asks you to confirm, downloads the release, verifies it, and restarts the panel.
+
+- **Signed:** every release publishes `checksums.txt` with an ed25519 signature (`checksums.txt.sig`). The public key is built into the binary (`internal/update/signing.pub`). meshpanel installs a binary only if the signature verifies **and** the binary's sha256 is in that signed file. A bad or missing signature, a mismatched hash, a downgrade, or a download from anywhere but GitHub installs nothing.
+- **Staged, not overwritten:** the download is kept in `<database dir>/update/` (for example `/var/lib/meshpanel/update/`), so the service needs no write access to `/usr/bin`. On each start meshpanel re-verifies the staged binary and switches to it. A newer installed package replaces the stage automatically.
+- **Not for development builds.** Turn it off with `update.enabled: false`. `update.repo` changes the GitHub repository; the signing key still has to match.
+- To update by hand, install the new package or binary as before.
+
 ## How device approval works
 
 ```
@@ -213,6 +222,7 @@ meshpanel version
   - Taps are authorized per person, even in group chats.
   - Every decision is audited with its channel.
 - **Proxies:** `X-Forwarded-For` is honored only from `server.trusted_proxies`.
+- **Updates:** installed only if signed with the release key built into the binary, and only by an owner after a confirmation. The private key lives in the project's GitHub Actions secrets, never in the repository.
 - **Secrets:** meshpanel refuses to start with a short or example `session_secret`.
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md).

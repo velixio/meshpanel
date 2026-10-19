@@ -16,6 +16,34 @@
     </div>
   </section>
 
+  {{if and $d.Update.On (has .Caps "owner")}}
+  <section class="card">
+    <div class="hd"><h2>{{icon "zap"}} Updates</h2>{{if $d.Update.Newer}}<span class="badge warn">{{$d.Update.Latest.Version}} available</span>{{else if $d.Update.Latest}}<span class="badge ok">up to date</span>{{end}}</div>
+    <div class="bd stack">
+      <div class="row between small"><span class="muted">Running</span><span class="mono">{{$d.Update.Current}}</span></div>
+      {{if $d.Update.CantWhy}}<div class="banner info">{{icon "info"}}<div>{{$d.Update.CantWhy}}</div></div>{{end}}
+      {{if $d.Update.CheckErr}}<div class="banner danger" role="alert">{{icon "alert"}}<div>{{$d.Update.CheckErr}}</div></div>{{end}}
+      {{if $d.Update.Staged}}<div class="banner info">{{icon "info"}}<div>{{$d.Update.Staged}} is downloaded and verified. It starts the next time meshpanel restarts.</div></div>{{end}}
+      {{if $d.Update.Newer}}
+        <div>
+          <b>Version {{$d.Update.Latest.Version}}</b>
+          <div class="small muted">Published {{$d.Update.Latest.Published.Format "2 Jan 2006"}} · <a href="{{$d.Update.Latest.URL}}" target="_blank" rel="noopener noreferrer">release notes</a></div>
+        </div>
+        {{if not $d.Update.CantWhy}}
+        <form method="post" action="{{.Base}}/settings/update_install" hx-confirm="Install meshpanel {{$d.Update.Latest.Version}}? It downloads the release from GitHub, checks its signature and checksum, then restarts the panel (a few seconds). Nothing is installed if the check fails.">{{template "csrf" .CSRF}}
+          <input type="hidden" name="tag" value="{{$d.Update.Latest.Tag}}">
+          <button class="btn primary">{{icon "zap"}}Install {{$d.Update.Latest.Version}}</button>
+        </form>
+        {{end}}
+      {{end}}
+      {{if not $d.Update.CantWhy}}
+      <form method="post" action="{{.Base}}/settings/update_check">{{template "csrf" .CSRF}}<button class="btn">Check for updates</button></form>
+      {{end}}
+      <p class="help small muted">Only releases signed with meshpanel's release key are installed. Owners only.</p>
+    </div>
+  </section>
+  {{end}}
+
   <section class="card">
     <div class="hd"><h2>Branding</h2></div>
     <form class="bd stack" method="post" action="{{.Base}}/settings/brand" enctype="multipart/form-data" hx-boost="false">{{template "csrf" .CSRF}}

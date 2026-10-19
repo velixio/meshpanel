@@ -3,9 +3,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"syscall"
 )
 
 // version is set at build time with -ldflags "-X main.version=…".
@@ -52,6 +54,15 @@ func main() {
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %q\n\n%s", cmd, usage)
 		os.Exit(2)
+	}
+	if errors.Is(err, errRestart) {
+		self, serr := os.Executable()
+		if serr == nil {
+			// Same process, fresh image: the startup checks switch to the
+			// staged update. systemd sees no restart.
+			serr = syscall.Exec(self, os.Args, os.Environ())
+		}
+		err = fmt.Errorf("restarting: %w", serr)
 	}
 	if err != nil {
 		msg := err.Error()

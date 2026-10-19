@@ -22,6 +22,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/hsconfig"
 	"github.com/meshpanel/meshpanel/internal/registration"
 	"github.com/meshpanel/meshpanel/internal/tailnet"
+	"github.com/meshpanel/meshpanel/internal/update"
 )
 
 //go:embed templates static
@@ -88,6 +89,9 @@ type Deps struct {
 	// pre-auth key it minted, not by name). nil when SSH is off.
 	SessionNodes interface{ Owns(hs.Node) bool }
 	Webhooks     WebhookSender
+	// Updater installs signed releases from Settings (owners only); nil when
+	// update.enabled is false.
+	Updater *update.Updater
 }
 
 // WebhookSender delivers one event to one webhook (for "Send test").

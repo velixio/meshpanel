@@ -25,7 +25,15 @@ type Config struct {
 	Telegram  Telegram  `yaml:"telegram"`
 	Agent     Agent     `yaml:"agent"`
 	WebSSH    WebSSH    `yaml:"web_ssh"`
+	Update    Update    `yaml:"update"`
 	Log       Log       `yaml:"log"`
+}
+
+// Update controls the Settings → Updates card. Updates are only ever
+// installed when signed with the release key built into the binary.
+type Update struct {
+	Enabled bool   `yaml:"enabled"`
+	Repo    string `yaml:"repo"` // owner/name on GitHub
 }
 
 type Server struct {
@@ -106,6 +114,7 @@ func Default() *Config {
 		Agent:    Agent{HSUser: "meshpanel", Hostname: "meshpanel", Interval: time.Minute},
 		WebSSH:   WebSSH{MaxSessions: 10, MaxPerUser: 3, DefaultUser: "root"},
 		Telegram: Telegram{APIBase: "https://api.telegram.org"},
+		Update:   Update{Enabled: true, Repo: "velixio/meshpanel"},
 		Log:      Log{Level: "info"},
 	}
 }

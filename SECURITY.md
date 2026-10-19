@@ -20,3 +20,14 @@ editing, and anything that lets one panel user affect devices they can't see.
 Out of scope: vulnerabilities in headscale itself (report those upstream),
 and deployments that expose port 8030 directly to the internet without a
 TLS proxy against the documentation.
+
+## Release signing
+
+Releases are signed (`checksums.txt.sig`, ed25519) and the in-app updater
+installs nothing else. The public key is `internal/update/signing.pub`; the
+private key is only in the project's GitHub Actions secrets and its
+maintainer's offline backup.
+
+If that key is ever lost or exposed, existing installs cannot be moved to a new
+key by an update (they would reject it). Ship the new key in a release that
+people install by hand (package or binary), and announce it here.

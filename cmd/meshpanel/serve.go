@@ -29,6 +29,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/tailnet"
 	"github.com/meshpanel/meshpanel/internal/tailnet/ts"
 	"github.com/meshpanel/meshpanel/internal/telegram"
+	"github.com/meshpanel/meshpanel/internal/update"
 	"github.com/meshpanel/meshpanel/internal/web"
 	"github.com/meshpanel/meshpanel/internal/webhook"
 )
@@ -109,6 +110,11 @@ func runServe(args []string) error {
 		return fmt.Errorf("invalid configuration:\n%w", err)
 	}
 	setupLogging(cfg.Log.Level)
+	stateDir := filepath.Dir(cfg.DB.Path)
+	if cfg.Update.Enabled {
+		// Switch to a staged, signature-checked update; returns if there is none.
+		update.ExecStaged(stateDir, version)
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -232,6 +238,13 @@ func runServe(args []string) error {
 	}
 	hooks := webhook.New(d)
 	deps.Webhooks = hooks
+	restart := make(chan struct{})
+	if cfg.Update.Enabled {
+		up := update.New(cfg.Update.Repo, stateDir, version)
+		var once sync.Once
+		up.Restart = func() { once.Do(func() { close(restart) }) }
+		deps.Updater = up
+	}
 	if sshMgr != nil {
 		deps.SSH = sshMgr
 		deps.SessionNodes = sessionKeys
@@ -288,16 +301,26 @@ func runServe(args []string) error {
 			errc <- err
 		}
 	}()
+	restarting := false
 	select {
 	case err := <-errc:
 		stop()
 		return fmt.Errorf("listening on %s: %w", cfg.Server.Listen, err)
 	case <-ctx.Done():
+	case <-restart:
+		restarting = true
+		stop() // stops the background workers, like a normal shutdown
 	}
 	slog.Info("shutting down")
 	sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	_ = httpSrv.Shutdown(sctx)
 	wg.Wait()
+	if restarting {
+		return errRestart
+	}
 	return nil
 }
+
+// errRestart makes main start the program again (after an update was staged).
+var errRestart = errors.New("restart")

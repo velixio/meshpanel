@@ -19,6 +19,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/hs"
 	"github.com/meshpanel/meshpanel/internal/perm"
 	"github.com/meshpanel/meshpanel/internal/tailnet"
+	"github.com/meshpanel/meshpanel/internal/update"
 	"github.com/meshpanel/meshpanel/internal/webhook"
 )
 
@@ -119,6 +120,19 @@ type settingsData struct {
 	Webhooks       []*db.Webhook
 	HookKinds      []events.Kind
 	DeviceLimit    int
+	Update         updateView
+}
+
+// updateView is the Settings → Updates card.
+type updateView struct {
+	On        bool
+	Current   string
+	Latest    *update.Release
+	Newer     bool
+	Staged    string // downloaded, waiting for the restart
+	CheckErr  string
+	CantWhy   string // why this build can't update itself
+	CheckedAt string
 }
 
 func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
@@ -142,6 +156,20 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 	d.HookKinds = webhook.Kinds
 	if s.SSH != nil {
 		d.SSHOn, d.SSHActive = true, s.SSH.Active()
+	}
+	if u := s.Updater; u != nil {
+		d.Update = updateView{On: true, Current: s.Version}
+		if err := u.Updatable(); err != nil {
+			d.Update.CantWhy = err.Error()
+		}
+		rel, err := u.Cached()
+		if rel != nil {
+			d.Update.Latest, d.Update.Newer = rel, update.Newer(rel.Tag, u.Current)
+		}
+		if err != nil {
+			d.Update.CheckErr = friendly(err)
+		}
+		d.Update.Staged, _ = u.Staged()
 	}
 	if s.HSVersion != nil {
 		d.HSVersion = s.HSVersion()
@@ -212,6 +240,8 @@ func (s *Server) settingsPost(w http.ResponseWriter, r *http.Request) {
 		}
 		s.audit(r, "settings.brand", name, nil, accent)
 		s.ok(w, r, here, "Branding saved.")
+	case "update_check", "update_install":
+		s.updatePost(w, r, here)
 	case "devices":
 		n, err := strconv.Atoi(strings.TrimSpace(r.PostFormValue("max_per_user")))
 		if err != nil || n < 0 || n > 1000 {

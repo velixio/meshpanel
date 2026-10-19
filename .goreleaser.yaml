@@ -112,6 +112,15 @@ release:
 checksum:
   name_template: checksums.txt
 
+# checksums.txt.sig: ed25519 signature the in-app updater verifies. The binary
+# is only trusted if its hash is in this signed file.
+signs:
+  - id: checksums
+    cmd: scripts/sign.sh
+    args: ["${artifact}", "${signature}"]
+    artifacts: checksum
+    signature: "${artifact}.sig"
+
 changelog:
   sort: asc
   filters:

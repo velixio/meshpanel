@@ -75,5 +75,11 @@ web_ssh:
   max_per_user: 3
   default_user: "root"
 
+# In-app updates (Settings → Updates, owners only). Releases must be signed
+# with the release key built into the binary; nothing else is installed.
+update:
+  enabled: true
+  repo: "velixio/meshpanel"
+
 log:
   level: "info"
