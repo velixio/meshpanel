@@ -294,8 +294,12 @@ func (s *Server) accountPost(w http.ResponseWriter, r *http.Request) {
 		s.audit(r, "account.password", acc.Username, nil, nil)
 		s.ok(w, r, here, "Password changed. Other sessions were signed out.")
 	case "codes":
-		if !auth.ValidateTOTP(acc.TOTPSecret, r.PostFormValue("code")) {
-			s.failed(w, r, here, errors.New("enter the current code from your authenticator app"))
+		step, ok := auth.ValidateTOTPStep(acc.TOTPSecret, r.PostFormValue("code"), time.Now())
+		if ok {
+			ok, _ = s.DB.UseTOTPStep(ctx, acc.ID, step)
+		}
+		if !ok {
+			s.failed(w, r, here, errors.New("enter the current code from your authenticator app (each code works once)"))
 			return
 		}
 		codes, err := auth.NewBackupCodes(ctx, s.DB, acc.ID)

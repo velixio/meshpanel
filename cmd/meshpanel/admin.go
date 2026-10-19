@@ -80,6 +80,10 @@ func runSetup(args []string) error {
 	if n, _ := d.CountAccounts(ctx); n > 0 {
 		return errors.New("accounts already exist; invite people from the People page instead")
 	}
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("fix the configuration first (the 2FA secret is sealed with server.session_secret):\n%w", err)
+	}
+	auth.SetSecretKey(cfg.Server.SessionSecret)
 	pw, err := newPassword()
 	if err != nil {
 		return err
@@ -89,7 +93,7 @@ func runSetup(args []string) error {
 		return err
 	}
 	secret, uri := auth.NewTOTPSecret("meshpanel", strings.ToLower(*username))
-	acc, err := d.CreateAccount(ctx, db.Account{Username: strings.ToLower(*username), PasswordHash: hash, Role: "owner", HSUser: *hsUser, TOTPSecret: secret, TOTPEnabled: true})
+	acc, err := d.CreateAccount(ctx, db.Account{Username: strings.ToLower(*username), PasswordHash: hash, Role: "owner", HSUser: *hsUser, TOTPSecret: auth.SealSecret(secret), TOTPEnabled: true})
 	if err != nil {
 		return err
 	}

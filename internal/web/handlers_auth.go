@@ -153,7 +153,13 @@ func (s *Server) twoFAPost(w http.ResponseWriter, r *http.Request) {
 	}
 	code := strings.TrimSpace(r.PostFormValue("code"))
 	usedBackup := false
-	ok := auth.ValidateTOTP(id.Account.TOTPSecret, code)
+	step, ok := auth.ValidateTOTPStep(id.Account.TOTPSecret, code, time.Now())
+	if ok {
+		// Each code works once, even inside its 90-second window.
+		if fresh, err := s.DB.UseTOTPStep(ctx, id.Account.ID, step); err != nil || !fresh {
+			ok = false
+		}
+	}
 	if !ok && len(code) > 6 {
 		ok = auth.UseBackupCode(ctx, s.DB, id.Account.ID, code)
 		usedBackup = ok
@@ -353,18 +359,21 @@ func (s *Server) enrollPage(w http.ResponseWriter, r *http.Request) {
 	}
 	if acc.TOTPSecret == "" || (reset && r.URL.Query().Get("keep") == "") {
 		secret, _ := auth.NewTOTPSecret(s.brand(ctx).Name, acc.Username)
-		acc.TOTPSecret = secret
+		sealed := auth.SealSecret(secret)
 		if reset {
 			// Stage the new secret without disabling the old one yet.
-			_ = s.DB.SetSetting(ctx, fmt.Sprintf("pending_totp.%d", acc.ID), secret)
-		} else if err := s.DB.UpdateAccount(ctx, acc); err != nil {
-			s.renderError(w, r, 500, "Something went wrong", err.Error())
-			return
+			_ = s.DB.SetSetting(ctx, fmt.Sprintf("pending_totp.%d", acc.ID), sealed)
+		} else {
+			acc.TOTPSecret = sealed
+			if err := s.DB.UpdateAccount(ctx, acc); err != nil {
+				s.renderError(w, r, 500, "Something went wrong", err.Error())
+				return
+			}
 		}
 	}
-	secret := acc.TOTPSecret
+	secret := auth.OpenSecret(acc.TOTPSecret)
 	if reset {
-		secret = s.DB.GetSetting(ctx, fmt.Sprintf("pending_totp.%d", acc.ID))
+		secret = auth.OpenSecret(s.DB.GetSetting(ctx, fmt.Sprintf("pending_totp.%d", acc.ID)))
 	}
 	uri := "otpauth://totp/" + url.PathEscape(s.brand(ctx).Name) + ":" + url.PathEscape(acc.Username) +
 		"?secret=" + secret + "&issuer=" + url.QueryEscape(s.brand(ctx).Name) + "&algorithm=SHA1&digits=6&period=30"
@@ -389,7 +398,8 @@ func (s *Server) enrollPost(w http.ResponseWriter, r *http.Request) {
 		secret = s.DB.GetSetting(ctx, pendingKey)
 	}
 	key := "2fa:" + acc.Username
-	if ok, _ := s.Limiter.Allow(key); !ok || secret == "" || !auth.ValidateTOTP(secret, r.PostFormValue("code")) {
+	step, valid := auth.ValidateTOTPStep(secret, r.PostFormValue("code"), time.Now())
+	if ok, _ := s.Limiter.Allow(key); !ok || secret == "" || !valid {
 		s.Limiter.Fail(key)
 		q := url.Values{"next": {r.PostFormValue("next")}}
 		if reset {
@@ -405,6 +415,7 @@ func (s *Server) enrollPost(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, 500, "Something went wrong", err.Error())
 		return
 	}
+	_, _ = s.DB.UseTOTPStep(ctx, acc.ID, step)
 	_ = s.DB.SetSetting(ctx, pendingKey, "")
 	codes, err := auth.NewBackupCodes(ctx, s.DB, acc.ID)
 	if err != nil {

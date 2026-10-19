@@ -198,3 +198,14 @@ func (d *DB) AccountsByHSUser(ctx context.Context) (map[string]*Account, error) 
 	}
 	return m, nil
 }
+
+// UseTOTPStep records step as used. It returns false when this or a later
+// step was already used: the code has been seen before.
+func (d *DB) UseTOTPStep(ctx context.Context, id, step int64) (bool, error) {
+	res, err := d.SQL.ExecContext(ctx, `UPDATE accounts SET totp_last_step = ? WHERE id = ? AND totp_last_step < ?`, step, id, step)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n == 1, nil
+}
