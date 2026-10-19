@@ -113,6 +113,7 @@ type Server struct {
 
 func New(d Deps) (*Server, error) {
 	s := &Server{Deps: d, base: d.Cfg.Server.BasePath, start: time.Now()}
+	auth.SetSecretKey(d.Cfg.Server.SessionSecret)
 	// Asset URLs change with every release (and every restart of dev builds).
 	s.assetV = d.Version
 	if s.assetV == "" || s.assetV == "dev" {

@@ -143,3 +143,39 @@ func TestSessionAbsoluteExpiry(t *testing.T) {
 		t.Fatalf("session older than 30 days alive: %v", err)
 	}
 }
+
+func TestTOTPStepReported(t *testing.T) {
+	secret, _ := NewTOTPSecret("Acme", "ravi")
+	now := time.Unix(1_800_000_000, 0)
+	step, ok := ValidateTOTPStep(secret, totpAt(secret, now), now)
+	if !ok || step != now.Unix()/30 {
+		t.Fatalf("step %d ok %v", step, ok)
+	}
+	prev, ok := ValidateTOTPStep(secret, totpAt(secret, now.Add(-30*time.Second)), now)
+	if !ok || prev != step-1 {
+		t.Fatalf("previous-step code: %d %v", prev, ok)
+	}
+}
+
+func TestSecretSealing(t *testing.T) {
+	SetSecretKey("0123456789abcdef0123456789abcdef")
+	defer SetSecretKey("")
+	sealed := SealSecret("JBSWY3DPEHPK3PXP")
+	if sealed == "JBSWY3DPEHPK3PXP" || !strings.HasPrefix(sealed, "enc1:") {
+		t.Fatalf("not sealed: %q", sealed)
+	}
+	if got := openSecret(sealed); got != "JBSWY3DPEHPK3PXP" {
+		t.Fatalf("round trip %q", got)
+	}
+	if got := openSecret("JBSWY3DPEHPK3PXP"); got != "JBSWY3DPEHPK3PXP" {
+		t.Fatal("legacy plaintext secrets must still work")
+	}
+	code := totpAt("JBSWY3DPEHPK3PXP", time.Now())
+	if !ValidateTOTP(sealed, code) {
+		t.Fatal("ValidateTOTP must accept sealed secrets")
+	}
+	SetSecretKey("another-secret-another-secret-xx")
+	if openSecret(sealed) != "" {
+		t.Fatal("wrong key must not decrypt")
+	}
+}

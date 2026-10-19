@@ -311,3 +311,30 @@ func TestNextRedirectIsLocal(t *testing.T) {
 }
 
 var _ = errors.New
+
+func TestTOTPReplayRejected(t *testing.T) {
+	h := newHarness(t)
+	_, secret := h.account("anna", "admin", "anna")
+	code := auth.TOTPCode(secret, time.Now())
+	first := h.client()
+	first.post("/admin/login", "/admin/login", url.Values{"username": {"anna"}, "password": {testPassword}})
+	if c, _, _ := first.post("/admin/login/2fa", "/admin/login/2fa", url.Values{"code": {code}}); c != http.StatusSeeOther {
+		t.Fatalf("first use: %d", c)
+	}
+	second := h.client()
+	second.post("/admin/login", "/admin/login", url.Values{"username": {"anna"}, "password": {testPassword}})
+	if c, _, _ := second.post("/admin/login/2fa", "/admin/login/2fa", url.Values{"code": {code}}); c == http.StatusSeeOther {
+		t.Fatal("the same 2FA code worked twice")
+	}
+}
+
+func TestTOTPSecretStoredSealed(t *testing.T) {
+	h := newHarness(t)
+	c := h.client()
+	c.post("/admin/setup", "/admin/setup", url.Values{"username": {"boss"}, "password": {testPassword}, "confirm": {testPassword}})
+	c.get("/admin/2fa/enroll")
+	a, _ := h.d.GetAccountByUsername(context.Background(), "boss")
+	if a.TOTPSecret == "" || !strings.HasPrefix(a.TOTPSecret, "enc1:") {
+		t.Fatalf("secret stored as %q", a.TOTPSecret)
+	}
+}

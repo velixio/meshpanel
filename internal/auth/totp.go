@@ -50,17 +50,27 @@ func totpAt(secret string, t time.Time) string {
 }
 
 func validateTOTPAt(secret, code string, now time.Time) bool {
+	_, ok := ValidateTOTPStep(secret, code, now)
+	return ok
+}
+
+// ValidateTOTPStep checks a code against the current step and one either
+// side, and returns the matching step so callers can refuse reuse. secret
+// may be sealed (see SealSecret).
+func ValidateTOTPStep(secret, code string, now time.Time) (int64, bool) {
+	secret = openSecret(secret)
 	code = strings.ReplaceAll(strings.TrimSpace(code), " ", "")
-	if len(code) != 6 {
-		return false
+	if len(code) != 6 || secret == "" {
+		return 0, false
 	}
-	for _, skew := range []time.Duration{0, -30 * time.Second, 30 * time.Second} {
-		want := totpAt(secret, now.Add(skew))
+	for _, skew := range []int64{0, -1, 1} {
+		step := now.Unix()/30 + skew
+		want := totpAt(secret, time.Unix(step*30, 0))
 		if want != "" && hmac.Equal([]byte(want), []byte(code)) {
-			return true
+			return step, true
 		}
 	}
-	return false
+	return 0, false
 }
 
 // ValidateTOTP accepts the current code and one step either side.
