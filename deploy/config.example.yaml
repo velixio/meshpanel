@@ -14,6 +14,8 @@ server:
   # Only these proxies may set X-Forwarded-For. CIDRs or single IPs.
   trusted_proxies: ["127.0.0.1/32", "::1/128"]
   # Generate with: openssl rand -hex 32   (or use session_secret_path)
+  # It also encrypts stored 2FA secrets: changing it later means every
+  # account has to set up 2FA again (meshpanel user reset-2fa NAME).
   session_secret: "change-me-to-a-random-string-of-32-chars-or-more"
   # session_secret_path: /etc/meshpanel/session_secret
 

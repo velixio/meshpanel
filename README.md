@@ -34,6 +34,7 @@ People who are allowed to approve their own devices skip the wait.
 ## Features
 
 - **Terminal-free device registration.** meshpanel serves its own `/register/<id>` and `/auth/<id>` (SSH check) pages: sign in, 2FA, then approval. Requests are approved exactly once, even when two admins tap at the same moment.
+- **Add-a-device helper.** A page that builds the exact `tailscale up` command (or `docker run`) for Linux, macOS, Windows and Docker, with routes, exit node, SSH, tags and an optional pre-auth key.
 - **Telegram bot.**
   - People link their own Telegram account.
   - Approval cards carry single-use buttons, and every tap re-checks the person's current permissions.
@@ -55,14 +56,17 @@ People who are allowed to approve their own devices skip the wait.
 - **Everything Headplane does**, except the Docker and Kubernetes integrations:
   - **Machines:** rename, tags, routes with exit-node and wide-subnet warnings, key expiry, delete.
   - **Users and pre-auth keys:** keys come with a QR code and per-OS setup steps.
-  - **Access policy:** a visual editor plus a HuJSON editor. Changes are checked with headscale, shown as a diff, then applied.
+  - **Access policy:** a visual editor plus a HuJSON editor, with download and upload. Changes are checked with headscale, shown as a diff, then applied.
   - **DNS:** MagicDNS, nameservers, split DNS and extra records. Changes are written to `config.yaml` with comments kept, a backup is taken, and headscale is restarted. The old file is restored if headscale doesn't come back.
 - **Device info (optional).** A small built-in tailnet node reads each machine's OS, model, Tailscale version and endpoints, and shows them in the machine list and detail page.
 - **Browser SSH terminal (optional).** Open a shell on a machine from the dashboard.
   - Each session joins the tailnet as **your own headscale user** (a short-lived node, deleted afterwards), so Tailscale SSH rules apply to you, not to the panel.
   - Works with Tailscale SSH and with a regular sshd (you're prompted for a password).
+  - When an SSH rule requires a fresh check (`"action": "check"`), the terminal shows an **Approve sign-in** button instead of timing out.
   - Sessions are recorded in the audit log.
 - **Live UI.** The browser updates over WebSocket and falls back to polling. There's a <kbd>Ctrl</kbd>+<kbd>K</kbd> command palette.
+- **Webhooks** for Slack, Discord, or any HTTP endpoint. Generic JSON payloads are HMAC-signed, and delivery is retried. Loopback, link-local and cloud-metadata targets are refused.
+- **Device limit.** An optional cap on devices per user. People at the cap can still request more, but an approver has to OK them.
 - **Audit log** of every change: who made it, through which channel (web, Telegram or CLI), and before/after values. It can be exported to CSV.
 - **Three themes:** Paper (default), Midnight and Console, plus "follow system". Each person picks their own. Admins can set a company accent color and logo.
 - **Small and self-contained.**
@@ -194,6 +198,9 @@ meshpanel version
 
 ## Security notes
 
+- **Phone sign-in links:** opening `/register/<id>` never changes anything. Confirming takes a CSRF-protected button, and the page warns against links someone else sent.
+- **2FA:** TOTP secrets are encrypted with a key derived from `session_secret`, and each code works once. Changing `session_secret` invalidates 2FA secrets; fix that with `meshpanel user reset-2fa`.
+- **Sign-in limits:** throttling is per IP and per account+IP. The per-account limit is gentle, so one attacker can't lock a user out everywhere.
 - **Sessions:** server-side, with `HttpOnly` and `SameSite=Lax` cookies. Sessions expire after 7 days idle and 30 days at the most. Logging in issues a fresh session token after 2FA.
 - **Requests:** every form is CSRF-protected and cross-origin requests are refused. The CSP allows scripts from meshpanel itself only.
 - **Telegram:**
