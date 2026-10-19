@@ -134,3 +134,22 @@ func TestThemeFormReloadsThePage(t *testing.T) {
 		t.Fatal("theme not applied after saving")
 	}
 }
+
+func TestKeyLifetimeSetting(t *testing.T) {
+	h := newHarness(t)
+	_, secret := h.account("boss", "owner", "")
+	c := h.client()
+	c.login("boss", secret)
+	c.post("/admin/settings", "/admin/settings/devices", url.Values{"max_per_user": {"0"}, "key_lifetime": {"never"}})
+	if got := h.d.GetSetting(context.Background(), "devices.key_lifetime"); got != "never" {
+		t.Fatalf("saved %q", got)
+	}
+	_, body, _ := c.get("/admin/settings")
+	if !regexp.MustCompile(`<option value="never" selected>`).MatchString(body) {
+		t.Fatal("saved choice isn't selected on the page")
+	}
+	c.post("/admin/settings", "/admin/settings/devices", url.Values{"max_per_user": {"0"}, "key_lifetime": {"30 minutes"}})
+	if got := h.d.GetSetting(context.Background(), "devices.key_lifetime"); got != "never" {
+		t.Fatalf("an invalid choice was saved: %q", got)
+	}
+}

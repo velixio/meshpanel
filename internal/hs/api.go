@@ -39,21 +39,27 @@ func (c *Client) ExpireNode(ctx context.Context, id string) (Node, error) {
 // SetKeyExpiryDisabled turns key expiry off (never expires) or back on. Turning
 // it back on needs a date, so it sets expiry 180 days out (headscale's default).
 func (c *Client) SetKeyExpiryDisabled(ctx context.Context, id string, disabled bool) (Node, error) {
+	return c.SetKeyExpiry(ctx, id, disabled, nowFunc().AddDate(0, 0, 180))
+}
+
+// SetKeyExpiry makes the node key expire at the given time, or never.
+func (c *Client) SetKeyExpiry(ctx context.Context, id string, never bool, at time.Time) (Node, error) {
 	var out nodeResp
-	body := map[string]any{"disableExpiry": true}
-	if !disabled {
-		body = map[string]any{"expiry": nowFunc().AddDate(0, 0, 180).UTC()}
-	}
+	path := "/api/v1/node/" + esc(id) + "/expire"
 	if c.Legacy() {
 		// The 0.29 gateway takes these as query parameters, not a body.
 		q := url.Values{"disableExpiry": {"true"}}
-		if !disabled {
-			q = url.Values{"expiry": {nowFunc().AddDate(0, 0, 180).UTC().Format(time.RFC3339)}}
+		if !never {
+			q = url.Values{"expiry": {at.UTC().Format(time.RFC3339)}}
 		}
-		err := c.do(ctx, http.MethodPost, "/api/v1/node/"+esc(id)+"/expire?"+q.Encode(), nil, &out)
+		err := c.do(ctx, http.MethodPost, path+"?"+q.Encode(), nil, &out)
 		return out.Node, err
 	}
-	err := c.do(ctx, http.MethodPost, "/api/v1/node/"+esc(id)+"/expire", body, &out)
+	body := map[string]any{"disableExpiry": true}
+	if !never {
+		body = map[string]any{"expiry": at.UTC()}
+	}
+	err := c.do(ctx, http.MethodPost, path, body, &out)
 	return out.Node, err
 }
 

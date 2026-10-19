@@ -23,7 +23,19 @@ type fakeHS struct {
 	node     string // GivenName AuthRegister reports (default "ravi-iphone")
 	taken    map[string]bool
 	renamed  []string
+	expiry   []string // "never" or the RFC 3339 time passed to SetKeyExpiry
 	mu       sync.Mutex
+}
+
+func (f *fakeHS) SetKeyExpiry(_ context.Context, id string, never bool, at time.Time) (hs.Node, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if never {
+		f.expiry = append(f.expiry, "never")
+	} else {
+		f.expiry = append(f.expiry, at.UTC().Format(time.RFC3339))
+	}
+	return hs.Node{ID: id}, nil
 }
 
 func (f *fakeHS) RenameNode(_ context.Context, id, name string) (hs.Node, error) {
@@ -259,6 +271,39 @@ func TestDeviceSlug(t *testing.T) {
 	} {
 		if got := DeviceSlug(ua); got != want {
 			t.Errorf("%q: %q, want %q", ua, got, want)
+		}
+	}
+}
+
+func TestNewDeviceKeyLifetime(t *testing.T) {
+	for setting, want := range map[string]string{"": "", "never": "never", "90": "days:90", "bogus": "", "0": "", "-5": ""} {
+		s, f, d, ravi, anna := setup(t)
+		d.SetSetting(context.Background(), KeyLifetimeSetting, setting)
+		ctx := context.Background()
+		p, _ := s.Create(ctx, KindRegister, authID, ravi, "1.2.3.4", iphoneUA)
+		got, err := s.Decide(ctx, p.ID, true, anna, "web", "")
+		if err != nil || got.NodeIP != "100.64.0.9" {
+			t.Fatalf("%q: %+v %v", setting, got, err)
+		}
+		switch {
+		case want == "":
+			if len(f.expiry) != 0 {
+				t.Errorf("%q: expiry set to %v", setting, f.expiry)
+			}
+		case want == "never":
+			if len(f.expiry) != 1 || f.expiry[0] != "never" {
+				t.Errorf("%q: %v", setting, f.expiry)
+			}
+		default:
+			at, _ := time.Parse(time.RFC3339, func() string {
+				if len(f.expiry) == 1 {
+					return f.expiry[0]
+				}
+				return ""
+			}())
+			if d := time.Until(at); d < 89*24*time.Hour || d > 91*24*time.Hour {
+				t.Errorf("%q: expiry %v (%v away)", setting, f.expiry, d)
+			}
 		}
 	}
 }

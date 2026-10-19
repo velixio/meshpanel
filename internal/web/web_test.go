@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -29,10 +30,17 @@ type fakeHS struct {
 	HS
 	mu         sync.Mutex
 	renamed    map[string]string
+	expiries   []string
 	registered []string
 	users      []hs.User
 }
 
+func (f *fakeHS) SetKeyExpiry(_ context.Context, id string, never bool, at time.Time) (hs.Node, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.expiries = append(f.expiries, fmt.Sprintf("%s never=%v", id, never))
+	return hs.Node{ID: id}, nil
+}
 func (f *fakeHS) RenameNode(_ context.Context, id, name string) (hs.Node, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

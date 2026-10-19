@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -44,6 +46,7 @@ func (e *AlreadyDecidedError) Error() string {
 type Registrar interface {
 	AuthRegister(ctx context.Context, user, authID string) (hs.Node, error)
 	RenameNode(ctx context.Context, id, name string) (hs.Node, error)
+	SetKeyExpiry(ctx context.Context, id string, never bool, at time.Time) (hs.Node, error)
 	AuthApprove(ctx context.Context, authID string) error
 	AuthReject(ctx context.Context, authID string) error
 }
@@ -147,6 +150,7 @@ func (s *Service) Decide(ctx context.Context, id int64, approve bool, actor *db.
 		n, callErr = s.hs.AuthRegister(hctx, user, p.AuthID)
 		if callErr == nil {
 			n = s.friendlyName(hctx, n, user, p.UserAgent)
+			n = s.applyKeyLifetime(hctx, n)
 		}
 		nodeName = n.DisplayName()
 		if len(n.IPAddresses) > 0 {
@@ -260,4 +264,41 @@ func (s *Service) friendlyName(ctx context.Context, n hs.Node, user, ua string) 
 		}
 	}
 	return n
+}
+
+// KeyLifetimeSetting holds how long a newly approved device's key lasts:
+// "" leaves it to headscale (node.expiry), "never", or a number of days.
+const KeyLifetimeSetting = "devices.key_lifetime"
+
+// applyKeyLifetime sets the key expiry of a just-registered device from the
+// Settings choice. Headscale's own default (node.expiry) applies when nothing
+// is chosen; a failure here leaves the device as headscale registered it.
+func (s *Service) applyKeyLifetime(ctx context.Context, n hs.Node) hs.Node {
+	v := strings.TrimSpace(s.db.GetSetting(ctx, KeyLifetimeSetting))
+	var (
+		never bool
+		at    time.Time
+	)
+	switch days, err := strconv.Atoi(v); {
+	case v == "":
+		return n
+	case v == "never":
+		never = true
+	case err == nil && days > 0:
+		at = s.now().AddDate(0, 0, days)
+	default:
+		return n
+	}
+	updated, err := s.hs.SetKeyExpiry(ctx, n.ID, never, at)
+	if err != nil {
+		slog.Warn("could not set the new device's key lifetime", "node", n.ID, "err", err)
+		return n
+	}
+	if len(updated.IPAddresses) == 0 {
+		updated.IPAddresses = n.IPAddresses
+	}
+	if updated.GivenName == "" {
+		updated.GivenName = n.GivenName
+	}
+	return updated
 }

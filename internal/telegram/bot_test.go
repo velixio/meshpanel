@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/meshpanel/meshpanel/internal/db"
 	"github.com/meshpanel/meshpanel/internal/events"
@@ -66,6 +67,9 @@ type fakeHS struct{ calls int }
 func (f *fakeHS) AuthRegister(context.Context, string, string) (hs.Node, error) {
 	f.calls++
 	return hs.Node{ID: "9", GivenName: "ravi-iphone"}, nil
+}
+func (f *fakeHS) SetKeyExpiry(_ context.Context, id string, _ bool, _ time.Time) (hs.Node, error) {
+	return hs.Node{ID: id}, nil
 }
 func (f *fakeHS) RenameNode(_ context.Context, id, name string) (hs.Node, error) {
 	return hs.Node{ID: id, GivenName: name}, nil

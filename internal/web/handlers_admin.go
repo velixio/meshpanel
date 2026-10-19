@@ -18,6 +18,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/events"
 	"github.com/meshpanel/meshpanel/internal/hs"
 	"github.com/meshpanel/meshpanel/internal/perm"
+	"github.com/meshpanel/meshpanel/internal/registration"
 	"github.com/meshpanel/meshpanel/internal/tailnet"
 	"github.com/meshpanel/meshpanel/internal/update"
 	"github.com/meshpanel/meshpanel/internal/webhook"
@@ -120,6 +121,8 @@ type settingsData struct {
 	Webhooks       []*db.Webhook
 	HookKinds      []events.Kind
 	DeviceLimit    int
+	KeyLifetime    string
+	KeyLifetimes   []keyLifetime
 	Update         updateView
 }
 
@@ -153,6 +156,7 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 	}
 	d.Webhooks, _ = s.DB.ListWebhooks(ctx)
 	d.DeviceLimit = s.deviceLimit(ctx)
+	d.KeyLifetime, d.KeyLifetimes = s.DB.GetSetting(ctx, registration.KeyLifetimeSetting), keyLifetimeList
 	d.HookKinds = webhook.Kinds
 	if s.SSH != nil {
 		d.SSHOn, d.SSHActive = true, s.SSH.Active()
@@ -248,9 +252,15 @@ func (s *Server) settingsPost(w http.ResponseWriter, r *http.Request) {
 			s.failed(w, r, here, errors.New("enter a number from 0 (no limit) to 1000"))
 			return
 		}
+		life := strings.TrimSpace(r.PostFormValue("key_lifetime"))
+		if _, ok := keyLifetimes[life]; !ok {
+			s.failed(w, r, here, errors.New("choose how long a new device's key lasts"))
+			return
+		}
 		_ = s.DB.SetSetting(ctx, "devices.max_per_user", strconv.Itoa(n))
-		s.audit(r, "settings.device_limit", strconv.Itoa(n), nil, nil)
-		s.ok(w, r, here, "Device limit saved.")
+		_ = s.DB.SetSetting(ctx, registration.KeyLifetimeSetting, life)
+		s.audit(r, "settings.device_limit", strconv.Itoa(n), nil, map[string]string{"key_lifetime": life})
+		s.ok(w, r, here, "Device settings saved.")
 	case "webhook_add":
 		r.ParseForm()
 		u, err := url.Parse(strings.TrimSpace(r.PostFormValue("url")))
@@ -434,3 +444,23 @@ func (s *Server) accountDataSessions(r *http.Request) []*db.Session {
 	ss, _ := s.DB.ListSessions(r.Context(), who(r).Account.ID)
 	return ss
 }
+
+type keyLifetime struct{ Value, Label string }
+
+// keyLifetimeList is the choice for how long a newly approved device's key lasts.
+var keyLifetimeList = []keyLifetime{
+	{"", "headscale's default (node.expiry)"},
+	{"never", "Never expires"},
+	{"30", "30 days"},
+	{"90", "90 days"},
+	{"180", "180 days"},
+	{"365", "1 year"},
+}
+
+var keyLifetimes = func() map[string]bool {
+	m := map[string]bool{}
+	for _, k := range keyLifetimeList {
+		m[k.Value] = true
+	}
+	return m
+}()
