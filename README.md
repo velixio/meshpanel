@@ -90,7 +90,8 @@ People who are allowed to approve their own devices skip the wait.
 ```sh
 # 1. Install. Packages from the releases page create the user and service:
 sudo dpkg -i meshpanel_*_amd64.deb       # or: rpm -i meshpanel_*.rpm
-#    …or install the binary yourself:
+#    …or download just the binary (also meshpanel_linux_arm64, meshpanel_linux_armv7):
+#    curl -Lo meshpanel https://github.com/velixio/meshpanel/releases/latest/download/meshpanel_linux_amd64
 #    sudo install -m 0755 meshpanel /usr/bin/meshpanel
 
 # 2. Configure

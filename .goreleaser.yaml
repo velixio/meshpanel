@@ -67,7 +67,12 @@ builds:
     goarm: ["7"]
 
 archives:
-  - formats: [tar.gz]
+  # The bare binary, for `curl -Lo meshpanel …/releases/latest/download/meshpanel_linux_amd64`.
+  - id: binary
+    formats: [binary]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
+  - id: archive
+    formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}"
     files:
       - LICENSE
