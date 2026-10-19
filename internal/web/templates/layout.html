@@ -44,6 +44,7 @@
         <input type="hidden" name="_csrf" value="{{.CSRF}}">
         <button class="btn ghost block" style="justify-content:flex-start">{{icon "logout"}}Sign out</button>
       </form>
+      {{if has .Caps "owner"}}<a class="ver" href="{{.Base}}/settings" title="Settings → Updates">meshpanel {{.Version}}</a>{{else}}<span class="ver">meshpanel {{.Version}}</span>{{end}}
     </div>
   </aside>
   <div class="main">
@@ -72,7 +73,7 @@
   <div class="box">
     {{template "mark" .}}
     {{template "auth-page" .}}
-    <p class="foot">{{.Brand.Name}}{{if ne .Brand.Name "meshpanel"}} · secured by meshpanel{{end}}</p>
+    <p class="foot">{{.Brand.Name}}{{if ne .Brand.Name "meshpanel"}} · secured by meshpanel{{end}} · {{.Version}}</p>
   </div>
 </main>
 {{template "flash" .}}

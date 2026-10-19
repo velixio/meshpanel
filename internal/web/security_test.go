@@ -93,3 +93,25 @@ func TestEnrollRefusedWhenAlreadyEnrolled(t *testing.T) {
 		t.Fatalf("enroll with a half-session on an enrolled account: %d %s", code, hdr.Get("Location"))
 	}
 }
+
+func TestVersionShownInSidebar(t *testing.T) {
+	h := newHarness(t) // Version "test"
+	_, secret := h.account("boss", "owner", "")
+	_, vsecret := h.account("vee", "viewer", "")
+	o := h.client()
+	o.login("boss", secret)
+	_, body, _ := o.get("/admin/")
+	if !strings.Contains(body, `class="ver" href="/admin/settings"`) || !strings.Contains(body, "meshpanel test") {
+		t.Fatal("owner doesn't see the version linking to Settings")
+	}
+	v := h.client()
+	v.login("vee", vsecret)
+	_, body, _ = v.get("/admin/")
+	if !strings.Contains(body, `<span class="ver">meshpanel test</span>`) {
+		t.Fatal("non-owner doesn't see a plain version label")
+	}
+	_, body, _ = h.client().get("/admin/login")
+	if !strings.Contains(body, "· test</p>") {
+		t.Fatal("sign-in page doesn't show the version")
+	}
+}
