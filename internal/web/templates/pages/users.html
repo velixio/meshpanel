@@ -5,14 +5,14 @@
 <div class="split">
   <section class="card">
     <div class="table-wrap"><table class="t">
-      <thead><tr><th>User</th><th>Devices</th><th class="hide-sm">Panel account</th><th class="hide-sm">Created</th>{{if has .Caps "write_users"}}<th></th>{{end}}</tr></thead>
+      <thead><tr><th data-sort>User</th><th data-sort>Devices</th><th class="hide-sm" data-sort>Panel account</th><th class="hide-sm" data-sort>Created</th>{{if has .Caps "write_users"}}<th></th>{{end}}</tr></thead>
       <tbody>
       {{range .Data}}
         <tr id="u-{{.ID}}">
           <td><div class="name"><span class="avatar">{{initials .Name}}</span><div><b>{{.Name}}</b>{{if .DisplayName}}<div class="sub">{{.DisplayName}}</div>{{end}}</div></div></td>
-          <td><span class="nowrap">{{.Nodes}} {{if .Online}}<span class="badge ok">{{.Online}} online</span>{{end}}</span></td>
+          <td data-v="{{.Nodes}}"><span class="nowrap">{{.Nodes}} {{if .Online}}<span class="badge ok">{{.Online}} online</span>{{end}}</span></td>
           <td class="hide-sm">{{if .Account}}{{.Account.Name}} <span class="faint small">{{.Account.Role}}</span>{{else}}<span class="faint">—</span>{{end}}</td>
-          <td class="hide-sm small muted">{{date .CreatedAt}}</td>
+          <td class="hide-sm small muted" data-v="{{unix .CreatedAt}}">{{date .CreatedAt}}</td>
           {{if has $p.Caps "write_users"}}<td class="actions">
             <details data-menu class="req" style="padding:0;border:0;display:inline-block">
               <summary class="btn ghost sm">Edit</summary>

@@ -35,15 +35,15 @@
   </div>
   <div id="mt-wrap" class="table-wrap" data-live="node changed" hx-get="{{.Base}}/machines" hx-trigger="mp-live" hx-disinherit="hx-get hx-select hx-swap hx-trigger" hx-select="#mt-wrap" hx-swap="outerHTML">
   <table class="t" id="mt">
-    <thead><tr><th>Machine</th><th class="hide-sm">Address</th><th class="hide-sm">Tags & routes</th><th>Status</th><th class="hide-sm">Key</th></tr></thead>
+    <thead><tr><th data-sort>Machine</th><th class="hide-sm" data-sort>Address</th><th class="hide-sm">Tags & routes</th><th data-sort>Status</th><th class="hide-sm" data-sort>Key</th></tr></thead>
     <tbody>
     {{range $d.Rows}}
       <tr class="clickable" data-href="{{$p.Base}}/machines/{{.ID}}" data-search="{{.Search}}" data-state="{{.State}}">
         <td><div class="name"><span class="faint">{{template "nodeIcon" .Node}}</span><div class="ellipsis"><a href="{{$p.Base}}/machines/{{.ID}}"><b>{{.DisplayName}}</b></a><div class="sub">{{if .Session}}browser SSH session · {{.UserName}}{{else if .IsTagged}}tagged device{{else}}{{.UserName}}{{if .Owner}} · {{.Owner}}{{end}}{{end}}{{if .OS}} · {{.OS}}{{end}}</div></div></div></td>
-        <td class="hide-sm mono small">{{ip .Node}}</td>
+        <td class="hide-sm mono small" data-v="{{ip .Node}}">{{ip .Node}}</td>
         <td class="hide-sm"><div class="row">{{template "tags" .Tags}}{{template "routeBadges" .Node}}</div></td>
-        <td class="nowrap">{{template "statusText" .Node}}</td>
-        <td class="hide-sm nowrap small">{{if .Expiry}}{{if .KeyExpired now}}<span class="badge danger">expired</span>{{else}}<span class="muted">{{until .Expiry}}</span>{{end}}{{else}}<span class="faint">no expiry</span>{{end}}</td>
+        <td class="nowrap" data-v="{{if .Online}}99999999999{{else}}{{unix .LastSeen}}{{end}}">{{template "statusText" .Node}}</td>
+        <td class="hide-sm nowrap small" data-v="{{if .Expiry}}{{unix .Expiry}}{{else}}99999999999{{end}}">{{if .Expiry}}{{if .KeyExpired now}}<span class="badge danger">expired</span>{{else}}<span class="muted">{{until .Expiry}}</span>{{end}}{{else}}<span class="faint">no expiry</span>{{end}}</td>
       </tr>
     {{end}}
     </tbody>

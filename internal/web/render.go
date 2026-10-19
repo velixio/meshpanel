@@ -309,12 +309,15 @@ func (s *Server) funcs() template.FuncMap {
 		"has":  func(c perm.Cap, name string) bool { return c.Has(perm.Parse([]string{name})) },
 		"ago":  func(t any) string { return ago(toTime(t), time.Now()) },
 		"unix": func(t any) int64 { return toTime(t).Unix() },
-		"date": func(t any) string {
+		// date renders server time, which app.js rewrites into the viewer's
+		// own time zone.
+		"date": func(t any) template.HTML {
 			tt := toTime(t)
 			if tt.IsZero() {
 				return "—"
 			}
-			return tt.Local().Format("2 Jan 2006, 15:04")
+			return template.HTML(`<time datetime="` + tt.UTC().Format(time.RFC3339) + `" data-local>` +
+				template.HTMLEscapeString(tt.Local().Format("2 Jan 2006, 15:04")) + `</time>`)
 		},
 		"until":    func(t any) string { return until(toTime(t), time.Now()) },
 		"initials": initials,

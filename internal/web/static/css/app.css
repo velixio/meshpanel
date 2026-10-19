@@ -189,6 +189,10 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .table-wrap { overflow-x: auto; }
 table.t { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .t th { text-align: left; font-weight: 550; font-size: 12px; color: var(--text-2); padding: 10px var(--pad); border-bottom: 1px var(--border-style) var(--border); white-space: nowrap; background: var(--surface); position: sticky; top: 0; }
+.t th[data-sort] { cursor: pointer; user-select: none; }
+.t th[data-sort]:hover { color: var(--text); }
+.t th[data-dir="asc"]::after { content: " ↑"; }
+.t th[data-dir="desc"]::after { content: " ↓"; }
 .t td { padding: 0 var(--pad); height: var(--row-h); border-bottom: 1px var(--border-style) var(--border); vertical-align: middle; }
 .t tr:last-child td { border-bottom: 0; }
 .t tbody tr { transition: background .1s; }

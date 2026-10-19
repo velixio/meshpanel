@@ -13,7 +13,7 @@
     <tbody>
     {{range $d.Entries}}
       <tr>
-        <td class="nowrap small" title="{{date .At}}"><span data-ago="{{unix .At}}">{{ago .At}}</span></td>
+        <td class="nowrap small"><span data-ago="{{unix .At}}">{{ago .At}}</span><div class="faint">{{date .At}}</div></td>
         <td class="nowrap"><b>{{.Actor}}</b> <span class="badge">{{.Channel}}</span></td>
         <td><code>{{.Action}}</code></td>
         <td class="ellipsis" style="max-width:260px">{{.Target}}</td>
