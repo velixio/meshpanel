@@ -21,3 +21,34 @@ jobs:
         run: go test -race ./...
       - name: Build and size check (< 40 MB)
         run: make size
+
+  # The same bare binaries a release publishes, built on every push and pull
+  # request: download them from the run's Artifacts.
+  binaries:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - {goarch: amd64, name: meshpanel_linux_amd64}
+          - {goarch: arm64, name: meshpanel_linux_arm64}
+          - {goarch: arm, goarm: "7", name: meshpanel_linux_armv7}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # tags, for the version string
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Build ${{ matrix.name }}
+        env:
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+          GOARM: ${{ matrix.goarm }}
+        run: make build BIN=bin/${{ matrix.name }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ matrix.name }}
+          path: bin/${{ matrix.name }}
+          if-no-files-found: error
+          retention-days: 14
