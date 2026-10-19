@@ -12,4 +12,4 @@ chown root:meshpanel /etc/meshpanel/config.yaml 2>/dev/null || true
 if command -v systemctl >/dev/null; then
     systemctl daemon-reload || true
 fi
-echo "meshpanel installed. Edit /etc/meshpanel/config.yaml (set server.session_secret), then: systemctl enable --now meshpanel"
+echo "meshpanel installed. Edit /etc/meshpanel/config.yaml (set server.public_url), then: systemctl enable --now meshpanel"

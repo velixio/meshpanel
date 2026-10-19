@@ -28,7 +28,7 @@ unix_socket_permission: "0770"
 
 In `/etc/meshpanel/config.yaml`:
 
-- `server.session_secret`: output of `openssl rand -hex 32`.
+- `server.session_secret`: optional; generated on first start if unset. To choose one: `openssl rand -hex 32`.
 - `server.public_url`: headscale's `server_url`, for example `https://headscale.example.com`.
 - `server.trusted_proxies`: your reverse proxy's address. The default is localhost.
 - `headscale.http_url`: headscale's `listen_addr`. meshpanel reads `/version` there.

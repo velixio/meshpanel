@@ -105,6 +105,10 @@ nfpms:
     scripts:
       postinstall: scripts/postinstall.sh
 
+release:
+  extra_files:
+    - glob: deploy/config.example.yaml
+
 checksum:
   name_template: checksums.txt
 

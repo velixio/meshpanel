@@ -93,10 +93,10 @@ sudo dpkg -i meshpanel_*_amd64.deb       # or: rpm -i meshpanel_*.rpm
 #    …or download just the binary (also meshpanel_linux_arm64, meshpanel_linux_armv7):
 #    curl -Lo meshpanel https://github.com/velixio/meshpanel/releases/latest/download/meshpanel_linux_amd64
 #    sudo install -m 0755 meshpanel /usr/bin/meshpanel
+#    curl -LO https://github.com/velixio/meshpanel/releases/latest/download/config.example.yaml
 
 # 2. Configure
-sudoedit /etc/meshpanel/config.yaml      # set session_secret and public_url
-#    session_secret: openssl rand -hex 32
+sudoedit /etc/meshpanel/config.yaml      # set public_url (session_secret is generated if unset)
 
 # 3. Route three paths to meshpanel in your proxy (examples below), then:
 sudo systemctl enable --now meshpanel
