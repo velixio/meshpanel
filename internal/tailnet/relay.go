@@ -9,11 +9,14 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
 	"strings"
 	"sync"
 
 	"golang.org/x/crypto/ssh"
 )
+
+var checkLinkRe = regexp.MustCompile(`https?://[^\s"'<>]+/auth/hskey-authreq-[0-9a-f]{24}`)
 
 // Size is a terminal size in character cells.
 type Size struct {
@@ -71,6 +74,11 @@ func Relay(ctx context.Context, conn net.Conn, user string, t Term, initial Size
 		// already authenticates the peer; there is no known_hosts to check.
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 		BannerCallback: func(msg string) error {
+			// Tailscale SSH "check" rules send a sign-in link; surface it so
+			// the browser can offer a button instead of copy-paste.
+			if link := checkLinkRe.FindString(msg); link != "" {
+				t.Status("check", link)
+			}
 			_, err := io.WriteString(t, strings.ReplaceAll(msg, "\n", "\r\n"))
 			return err
 		},

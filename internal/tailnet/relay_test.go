@@ -20,6 +20,7 @@ import (
 // sshServer serves one connection: echoes stdin back to stdout and records
 // PTY sizes. If password is set, only password auth with it is accepted.
 type sshServer struct {
+	banner   string
 	password string
 	mu       sync.Mutex
 	sizes    []Size
@@ -31,6 +32,10 @@ func (s *sshServer) serve(t *testing.T, conn net.Conn) {
 	_, priv, _ := ed25519.GenerateKey(rand.Reader)
 	signer, _ := ssh.NewSignerFromKey(priv)
 	cfg := &ssh.ServerConfig{}
+	if s.banner != "" {
+		b := s.banner
+		cfg.BannerCallback = func(ssh.ConnMetadata) string { return b }
+	}
 	if s.password == "" {
 		cfg.NoClientAuth = true
 	} else {
@@ -90,6 +95,7 @@ type fakeTerm struct {
 	answers []string
 	asked   []string
 	states  []string
+	msgs    []string
 }
 
 func (f *fakeTerm) Read(p []byte) (int, error) { return f.in.Read(p) }
@@ -113,6 +119,7 @@ func (f *fakeTerm) Prompt(_ context.Context, q string, echo bool) (string, error
 func (f *fakeTerm) Status(state, msg string) {
 	f.mu.Lock()
 	f.states = append(f.states, state)
+	f.msgs = append(f.msgs, msg)
 	f.mu.Unlock()
 }
 func (f *fakeTerm) output() string {
@@ -250,4 +257,30 @@ func tcpPair(t *testing.T) (net.Conn, net.Conn) {
 	srv := <-ch
 	t.Cleanup(func() { cli.Close(); srv.Close() })
 	return cli, srv
+}
+
+// Tailscale SSH "check" rules send a sign-in link in the banner; the
+// terminal surfaces it so the person can approve without copying text.
+func TestRelaySurfacesCheckLink(t *testing.T) {
+	cli, srvConn := tcpPair(t)
+	link := "https://hs.example.com/auth/hskey-authreq-0123456789abcdef01234567"
+	srv := &sshServer{banner: "# Tailscale SSH requires an additional check.\n# To authenticate, visit: " + link + "\n"}
+	go srv.serve(t, srvConn)
+	inR, inW := io.Pipe()
+	defer inW.Close()
+	term := &fakeTerm{in: inR, resizes: make(chan Size)}
+	go Relay(context.Background(), cli, "root", term, Size{80, 24})
+	waitFor(t, func() bool {
+		term.mu.Lock()
+		defer term.mu.Unlock()
+		for i, s := range term.states {
+			if s == "check" && term.msgs[i] == link {
+				return true
+			}
+		}
+		return false
+	})
+	if !strings.Contains(term.output(), "To authenticate") {
+		t.Fatal("banner text not shown in the terminal")
+	}
 }
