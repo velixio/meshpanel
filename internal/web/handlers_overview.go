@@ -23,6 +23,7 @@ type pendingView struct {
 	Pending       *db.Pending
 	RequesterName string
 	Users         []hs.User
+	Count, Limit  int // the requester's devices, and the per-user limit (0 = none)
 }
 
 // openPendingFor lists open requests the caller may decide.
@@ -41,7 +42,8 @@ func (s *Server) openPendingFor(ctx context.Context, id *identity) []pendingView
 		if a, err := s.DB.GetAccount(ctx, p.RequesterID); err == nil {
 			name = a.Name()
 		}
-		out = append(out, pendingView{Pending: p, RequesterName: name, Users: users})
+		_, count, limit := s.atLimit(ctx, p.HSUser)
+		out = append(out, pendingView{Pending: p, RequesterName: name, Users: users, Count: count, Limit: limit})
 	}
 	return out
 }

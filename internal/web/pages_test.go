@@ -372,3 +372,33 @@ func TestWebhookSettings(t *testing.T) {
 		t.Fatal("not deleted")
 	}
 }
+
+func TestDeviceLimitBlocksSelfApproval(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	h.d.SetSetting(ctx, "devices.max_per_user", "1")
+	ravi, secret := h.account("ravi", "member", "ravi") // already owns node 1
+	ravi.ExtraCaps = uint64(perm.ApproveDevicesOwn)
+	h.d.UpdateAccount(ctx, ravi)
+	c := h.client()
+	c.login("ravi", secret)
+	reg := "/register/hskey-authreq-0123456789abcdef01234567"
+	_, page, _ := c.get(reg)
+	if !strings.Contains(page, "device limit") {
+		t.Fatal("confirm page doesn't mention the limit")
+	}
+	c.post(reg, reg, nil)
+	if len(h.hs.registered) != 0 {
+		t.Fatal("self-approved past the device limit")
+	}
+	_, body, _ := c.get(reg)
+	if !strings.Contains(body, "Waiting for approval") {
+		t.Fatal("over-limit request not queued for an approver")
+	}
+	_, as := h.account("anna", "admin", "anna")
+	a := h.client()
+	a.login("anna", as)
+	if _, ov, _ := a.get("/admin/"); !strings.Contains(ov, "1 of 1 devices") {
+		t.Fatal("approver isn't told the requester is at the limit")
+	}
+}

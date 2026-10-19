@@ -54,6 +54,14 @@
     </div>
   </section>
 
+  <section class="card">
+    <div class="hd"><h2>{{icon "monitor"}} Devices</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/settings/devices">{{template "csrf" .CSRF}}
+      <label class="field">Devices per user <span class="help">0 means no limit. At the limit, people can still request more, but an approver has to OK them.</span><input class="input" type="number" min="0" max="1000" name="max_per_user" value="{{$d.DeviceLimit}}" style="max-width:140px"></label>
+      <div><button class="btn">Save</button></div>
+    </form>
+  </section>
+
   <section class="card" style="grid-column:1/-1">
     <div class="hd"><h2>{{icon "send"}} Webhooks</h2><span class="hint">Slack, Discord, or any HTTP endpoint</span></div>
     {{if $d.Webhooks}}
