@@ -87,6 +87,12 @@ type Deps struct {
 	// SessionNodes recognises meshpanel's own browser-SSH nodes (by the
 	// pre-auth key it minted, not by name). nil when SSH is off.
 	SessionNodes interface{ Owns(hs.Node) bool }
+	Webhooks     WebhookSender
+}
+
+// WebhookSender delivers one event to one webhook (for "Send test").
+type WebhookSender interface {
+	Send(ctx context.Context, h *db.Webhook, ev events.Event) error
 }
 
 // HostInfoSource is the tailnet agent's cache.

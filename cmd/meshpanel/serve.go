@@ -27,6 +27,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/tailnet/ts"
 	"github.com/meshpanel/meshpanel/internal/telegram"
 	"github.com/meshpanel/meshpanel/internal/web"
+	"github.com/meshpanel/meshpanel/internal/webhook"
 )
 
 func configFlag(fs *flag.FlagSet) *string {
@@ -188,6 +189,8 @@ func runServe(args []string) error {
 	if hostCache != nil {
 		deps.Agent = hostCache
 	}
+	hooks := webhook.New(d)
+	deps.Webhooks = hooks
 	if sshMgr != nil {
 		deps.SSH = sshMgr
 		deps.SessionNodes = sessionKeys
@@ -204,6 +207,7 @@ func runServe(args []string) error {
 		run(func() { agent.Run(ctx) })
 	}
 	run(func() { reg.Run(ctx) })
+	run(func() { hooks.Run(ctx, bus) })
 	if bot != nil {
 		run(func() { engine.Run(ctx, bus, bot) })
 		run(func() { bot.Run(ctx, bus) })
