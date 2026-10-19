@@ -26,6 +26,9 @@ type registerView struct {
 	SelfOK  bool      // confirming adds the device right away
 	CanSSH  bool      // may approve SSH checks
 	Error   string
+	AtLimit bool // the person's user reached the device limit
+	Count   int
+	Limit   int
 }
 
 func kindPath(kind, id string) string {
@@ -81,7 +84,8 @@ func (s *Server) registerPage(kind string) http.HandlerFunc {
 		case errors.Is(err, db.ErrNotFound):
 			v.State = "confirm"
 			if kind == registration.KindRegister {
-				v.SelfOK = id.Account.HSUser != "" && perm.CanApprove(id.Caps, id.Account.HSUser, id.Account.HSUser)
+				v.AtLimit, v.Count, v.Limit = s.atLimit(r.Context(), id.Account.HSUser)
+				v.SelfOK = !v.AtLimit && id.Account.HSUser != "" && perm.CanApprove(id.Caps, id.Account.HSUser, id.Account.HSUser)
 				if id.Caps.Has(perm.ApproveDevices) {
 					v.Users = s.Poller.Users()
 				}
@@ -133,6 +137,13 @@ func (s *Server) registerConfirm(kind string) http.HandlerFunc {
 
 		asUser := strings.TrimSpace(r.PostFormValue("as_user"))
 		decision := r.PostFormValue("decision")
+		// Over the device limit, only approve_devices holders add directly
+		// (they're the ones the limit asks); everyone else goes to the queue.
+		limited, _, _ := s.atLimit(ctx, id.Account.HSUser)
+		if limited && !id.Caps.Has(perm.ApproveDevices) {
+			http.Redirect(w, r, back, http.StatusSeeOther)
+			return
+		}
 		switch {
 		case kind == registration.KindSSH && isDecision(decision) && id.Caps.Has(perm.ApproveSSH):
 			_, err = s.Reg.Decide(ctx, p.ID, decision == "approve", id.Account, "web", "")

@@ -35,6 +35,7 @@
         <select class="input" name="as_user">{{range $v.Users}}<option value="{{.Name}}" {{if eq .Name $.Me.HSUser}}selected{{end}}>{{.Name}}{{if .DisplayName}} ({{.DisplayName}}){{end}}</option>{{end}}</select>
       </label>
       {{end}}
+      {{if $v.AtLimit}}<div class="banner info">{{icon "info"}}<div>You've reached the device limit ({{$v.Count}} of {{$v.Limit}}){{if not $v.Users}}, so an approver needs to OK this one{{end}}.</div></div>{{end}}
       <button class="btn primary lg block">{{icon "check"}}{{if or $v.SelfOK $v.Users}}Add this device{{else}}Request access{{end}}</button>
       {{if not (or $v.SelfOK $v.Users)}}<p class="small muted" style="text-align:center">An admin will be asked to approve it.</p>{{end}}
     {{end}}

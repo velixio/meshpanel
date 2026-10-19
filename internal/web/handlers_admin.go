@@ -118,6 +118,7 @@ type settingsData struct {
 	SSHActive      int
 	Webhooks       []*db.Webhook
 	HookKinds      []events.Kind
+	DeviceLimit    int
 }
 
 func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +138,7 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 		d.AgentOn, d.Agent = true, s.Agent.State()
 	}
 	d.Webhooks, _ = s.DB.ListWebhooks(ctx)
+	d.DeviceLimit = s.deviceLimit(ctx)
 	d.HookKinds = webhook.Kinds
 	if s.SSH != nil {
 		d.SSHOn, d.SSHActive = true, s.SSH.Active()
@@ -210,6 +212,15 @@ func (s *Server) settingsPost(w http.ResponseWriter, r *http.Request) {
 		}
 		s.audit(r, "settings.brand", name, nil, accent)
 		s.ok(w, r, here, "Branding saved.")
+	case "devices":
+		n, err := strconv.Atoi(strings.TrimSpace(r.PostFormValue("max_per_user")))
+		if err != nil || n < 0 || n > 1000 {
+			s.failed(w, r, here, errors.New("enter a number from 0 (no limit) to 1000"))
+			return
+		}
+		_ = s.DB.SetSetting(ctx, "devices.max_per_user", strconv.Itoa(n))
+		s.audit(r, "settings.device_limit", strconv.Itoa(n), nil, nil)
+		s.ok(w, r, here, "Device limit saved.")
 	case "webhook_add":
 		r.ParseForm()
 		u, err := url.Parse(strings.TrimSpace(r.PostFormValue("url")))

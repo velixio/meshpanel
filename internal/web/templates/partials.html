@@ -10,7 +10,7 @@
   <span class="ico">{{if eq $r.Pending.Kind "ssh"}}{{icon "lock"}}{{else}}{{icon "phone"}}{{end}}</span>
   <div class="meta">
     <b>{{$r.RequesterName}}</b> <span class="muted">{{if eq $r.Pending.Kind "ssh"}}wants SSH access{{else}}wants to add a device{{end}}</span>
-    <div class="sub">{{device $r.Pending.UserAgent}} · {{$r.Pending.IP}}{{if $r.Pending.HSUser}} · user <code>{{$r.Pending.HSUser}}</code>{{end}} · expires in <span data-countdown="{{unix $r.Pending.ExpiresAt}}">…</span></div>
+    <div class="sub">{{device $r.Pending.UserAgent}} · {{$r.Pending.IP}}{{if $r.Pending.HSUser}} · user <code>{{$r.Pending.HSUser}}</code>{{end}}{{if $r.Limit}} · <span class="{{if ge $r.Count $r.Limit}}err-text{{end}}">{{$r.Count}} of {{$r.Limit}} devices</span>{{end}} · expires in <span data-countdown="{{unix $r.Pending.ExpiresAt}}">…</span></div>
   </div>
   <div class="acts">
     <form method="post" action="{{$p.Base}}/approvals/{{$r.Pending.ID}}">{{template "csrf" $p.CSRF}}<input type="hidden" name="decision" value="approve"><button class="btn primary sm">{{icon "check"}}Approve</button></form>
