@@ -14,7 +14,7 @@ var version = "dev"
 const usage = `meshpanel: a control panel for headscale
 
 Usage:
-  meshpanel serve   [-c config.yaml]           run the panel
+  meshpanel [serve] [-c config.yaml]           run the panel (the default)
   meshpanel setup   [-c config.yaml] -u NAME   create the first owner account
   meshpanel user reset-2fa   [-c …] NAME       make NAME set up two-factor again
   meshpanel user set-password [-c …] NAME      set a new password for NAME
@@ -28,11 +28,11 @@ The config path defaults to $MESHPANEL_CONFIG, then /etc/meshpanel/config.yaml
 `
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Print(usage)
-		os.Exit(2)
+	// No command, or only flags (meshpanel -c x.yaml), means serve.
+	cmd, args := "serve", os.Args[1:]
+	if len(args) > 0 && (!strings.HasPrefix(args[0], "-") || isInfoFlag(args[0])) {
+		cmd, args = args[0], args[1:]
 	}
-	cmd, args := os.Args[1], os.Args[2:]
 	var err error
 	switch cmd {
 	case "serve":
@@ -61,4 +61,12 @@ func main() {
 		fmt.Fprint(os.Stderr, "meshpanel: "+msg)
 		os.Exit(1)
 	}
+}
+
+func isInfoFlag(a string) bool {
+	switch a {
+	case "-h", "--help", "-v", "--version":
+		return true
+	}
+	return false
 }
