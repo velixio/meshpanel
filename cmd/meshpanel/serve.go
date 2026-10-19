@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -11,6 +13,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -32,9 +35,12 @@ import (
 
 func configFlag(fs *flag.FlagSet) *string {
 	def := os.Getenv("MESHPANEL_CONFIG")
-	if def == "" {
-		if _, err := os.Stat("/etc/meshpanel/config.yaml"); err == nil {
-			def = "/etc/meshpanel/config.yaml"
+	for _, p := range []string{"config.yaml", "/etc/meshpanel/config.yaml"} {
+		if def != "" {
+			break
+		}
+		if _, err := os.Stat(p); err == nil {
+			def = p
 		}
 	}
 	return fs.String("c", def, "path to config.yaml")
@@ -45,7 +51,36 @@ func loadConfig(path string) (*config.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if c.Server.SessionSecret == "" {
+		if c.Server.SessionSecret, err = persistedSecret(filepath.Join(filepath.Dir(c.DB.Path), "session_secret")); err != nil {
+			return nil, fmt.Errorf("server.session_secret is not set and one could not be saved: %w\nset it yourself with: openssl rand -hex 32", err)
+		}
+	}
 	return c, nil
+}
+
+// persistedSecret returns the secret saved at path, creating a random one on
+// first use, so a bare `meshpanel` works without any configuration. It lives
+// beside the database because it also seals the stored 2FA secrets.
+func persistedSecret(path string) (string, error) {
+	if b, err := os.ReadFile(path); err == nil {
+		if s := strings.TrimSpace(string(b)); len(s) >= 32 {
+			return s, nil
+		}
+	}
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	s := hex.EncodeToString(buf)
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(path, []byte(s+"\n"), 0o600); err != nil {
+		return "", err
+	}
+	slog.Info("generated a session secret", "path", path)
+	return s, nil
 }
 
 func setupLogging(level string) {
