@@ -113,9 +113,14 @@ func TestRegisterSelfApprove(t *testing.T) {
 	_, secret := h.account("anna", "admin", "anna")
 	c := h.client()
 	c.login("anna", secret)
-	code, body, _ := c.get("/register/hskey-authreq-0123456789abcdef01234567")
-	if code != 200 || !strings.Contains(body, "connected") {
-		t.Fatalf("%d", code)
+	reg := "/register/hskey-authreq-0123456789abcdef01234567"
+	code, body, _ := c.post(reg, reg, nil)
+	if code != http.StatusSeeOther {
+		t.Fatalf("confirm: %d", code)
+	}
+	_, body, _ = c.get(reg)
+	if !strings.Contains(body, "connected") {
+		t.Fatal("not connected after confirming")
 	}
 	if len(h.hs.registered) != 1 || h.hs.registered[0] != "anna/hskey-authreq-0123456789abcdef01234567" {
 		t.Fatalf("registered %v", h.hs.registered)
@@ -128,7 +133,9 @@ func TestRegisterMemberWaitsThenApproved(t *testing.T) {
 	_, as := h.account("anna", "admin", "anna")
 	phone := h.client()
 	phone.login("ravi", rs)
-	_, body, _ := phone.get("/register/hskey-authreq-0123456789abcdef01234567")
+	reg := "/register/hskey-authreq-0123456789abcdef01234567"
+	phone.post(reg, reg, nil)
+	_, body, _ := phone.get(reg)
 	if !strings.Contains(body, "Waiting for approval") || len(h.hs.registered) != 0 {
 		t.Fatal("member was not put in the queue")
 	}
@@ -154,7 +161,8 @@ func TestOwnApproverCannotApproveAsOtherUserOnWeb(t *testing.T) {
 	_, rs := h.account("ravi", "member", "ravi")
 	c := h.client()
 	c.login("ravi", rs)
-	c.get("/register/hskey-authreq-0123456789abcdef01234567")
+	reg := "/register/hskey-authreq-0123456789abcdef01234567"
+	c.post(reg, reg, nil)
 	c.post("/admin/", "/register/hskey-authreq-0123456789abcdef01234567/decide", url.Values{"decision": {"approve"}, "as_user": {"anna"}})
 	if len(h.hs.registered) != 0 {
 		t.Fatal("member approved their own device as another user")
@@ -227,5 +235,40 @@ func TestIAMCannotEscalate(t *testing.T) {
 	c.post("/admin/people", "/admin/people/"+itoa(adm.ID)+"/password", url.Values{"password": {"attacker-chosen-pw"}})
 	if a, _ := h.d.GetAccount(ctx, adm.ID); auth.VerifyPassword(a.PasswordHash, "attacker-chosen-pw") {
 		t.Fatal("reset the password of a more powerful account")
+	}
+}
+
+// Opening a register link must never change anything: an attacker could
+// send a signed-in admin a link to their own device's request.
+func TestRegisterGETChangesNothing(t *testing.T) {
+	h := newHarness(t)
+	_, secret := h.account("anna", "admin", "anna")
+	c := h.client()
+	c.login("anna", secret)
+	code, body, _ := c.get("/register/hskey-authreq-0123456789abcdef01234567")
+	if code != 200 || !strings.Contains(body, "Add this device") || !strings.Contains(body, "method=\"post\"") {
+		t.Fatalf("confirm page: %d", code)
+	}
+	if len(h.hs.registered) != 0 {
+		t.Fatal("GET registered a device")
+	}
+	if ps, _ := h.d.ListPending(context.Background(), false, 10); len(ps) != 0 {
+		t.Fatal("GET created a pending request")
+	}
+}
+
+func TestRegisterConfirmNeedsCSRF(t *testing.T) {
+	h := newHarness(t)
+	_, secret := h.account("anna", "admin", "anna")
+	c := h.client()
+	c.login("anna", secret)
+	req, _ := http.NewRequest("POST", h.srv.URL+"/register/hskey-authreq-0123456789abcdef01234567", nil)
+	resp, err := c.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden || len(h.hs.registered) != 0 {
+		t.Fatalf("POST without token: %d %v", resp.StatusCode, h.hs.registered)
 	}
 }

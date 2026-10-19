@@ -15,17 +15,29 @@
     <form method="post" action="{{$v.Path}}/cancel">{{template "csrf" .CSRF}}<button class="btn block">Cancel request</button></form>
   </div>
 
-{{else if eq $v.State "choose"}}
-  <h1>Add this device</h1>
-  <p class="lead">You can approve devices. Pick the user it belongs to.</p>
-  <form class="card" method="post" action="{{$v.Path}}/decide">
+{{else if eq $v.State "confirm"}}
+  <h1>{{if eq $v.Kind "ssh"}}Approve SSH access{{else}}Add this device{{end}}</h1>
+  <p class="lead">to {{.Brand.Name}}, as <b>{{.Me.Name}}</b></p>
+  <form class="card" method="post" action="{{$v.Path}}">
     {{template "csrf" .CSRF}}
-    <input type="hidden" name="decision" value="approve">
-    <div class="device"><span class="ico">{{icon "phone"}}</span><div><b>{{device $v.Device}}</b><div class="small muted">{{$v.IP}}</div></div></div>
-    <label class="field">Register under user
-      <select class="input" name="as_user" required>{{range $v.Users}}<option value="{{.Name}}">{{.Name}}{{if .DisplayName}} ({{.DisplayName}}){{end}}</option>{{end}}</select>
-    </label>
-    <button class="btn primary lg block">{{icon "check"}}Approve this device</button>
+    <div class="device"><span class="ico">{{if eq $v.Kind "ssh"}}{{icon "lock"}}{{else}}{{icon "phone"}}{{end}}</span><div><b>{{if eq $v.Kind "ssh"}}SSH sign-in check{{else}}{{device $v.Device}}{{end}}</b><div class="small muted">{{$v.IP}}</div></div></div>
+    <div class="banner warn">{{icon "alert"}}<div>Only continue if <b>you</b> just opened {{if eq $v.Kind "ssh"}}this SSH session{{else}}the Tailscale app on the device you want to add{{end}}. If someone sent you this link, stop: it would add <b>their</b> device to your account.</div></div>
+    {{if eq $v.Kind "ssh"}}
+      {{if $v.CanSSH}}
+        <button class="btn primary lg block" name="decision" value="approve">{{icon "check"}}Approve</button>
+        <button class="btn block" name="decision" value="deny">{{icon "x"}}Reject</button>
+      {{else}}
+        <button class="btn primary lg block">Ask an approver</button>
+      {{end}}
+    {{else}}
+      {{if $v.Users}}
+      <label class="field">Register under user
+        <select class="input" name="as_user">{{range $v.Users}}<option value="{{.Name}}" {{if eq .Name $.Me.HSUser}}selected{{end}}>{{.Name}}{{if .DisplayName}} ({{.DisplayName}}){{end}}</option>{{end}}</select>
+      </label>
+      {{end}}
+      <button class="btn primary lg block">{{icon "check"}}{{if or $v.SelfOK $v.Users}}Add this device{{else}}Request access{{end}}</button>
+      {{if not (or $v.SelfOK $v.Users)}}<p class="small muted" style="text-align:center">An admin will be asked to approve it.</p>{{end}}
+    {{end}}
   </form>
 
 {{else if eq $v.State "ssh-decide"}}

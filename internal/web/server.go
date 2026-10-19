@@ -165,6 +165,8 @@ func (s *Server) Handler() http.Handler {
 	// Phone flow, at the root as headscale's URLs are.
 	mux.HandleFunc("GET /register/{id}", s.registerPage(registration.KindRegister))
 	mux.HandleFunc("GET /auth/{id}", s.registerPage(registration.KindSSH))
+	mux.HandleFunc("POST /register/{id}", s.registerConfirm(registration.KindRegister))
+	mux.HandleFunc("POST /auth/{id}", s.registerConfirm(registration.KindSSH))
 	mux.HandleFunc("POST /register/{id}/decide", s.registerSelfDecide)
 	mux.HandleFunc("POST /auth/{id}/decide", s.registerSelfDecide)
 	mux.HandleFunc("POST /register/{id}/cancel", s.registerCancel)
