@@ -30,6 +30,23 @@
     stateEl.className = "badge " + (kind || "");
   }
 
+  // SSH "check" rules: offer the approval link as a button.
+  function showCheck(url) {
+    // Only links back to this panel: a hostile SSH server could send any URL.
+    let u;
+    try { u = new URL(url); } catch (_) { return; }
+    if (u.host !== location.host || !/^\/auth\/hskey-authreq-[0-9a-f]{24}$/.test(u.pathname)) return;
+    let b = document.getElementById("ssh-check");
+    if (!b) {
+      b = document.createElement("div");
+      b.id = "ssh-check";
+      b.className = "banner warn mt";
+      b.innerHTML = '<div class="grow">This SSH rule needs a fresh check. Approve it, and the session continues by itself.</div><a class="btn primary sm" target="_blank" rel="noopener">Approve sign-in</a>';
+      host.parentNode.parentNode.insertBefore(b, host.parentNode);
+    }
+    b.querySelector("a").href = url;
+  }
+
   function send(obj) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(obj)); }
 
   function connect() {
@@ -47,10 +64,13 @@
       if (typeof ev.data !== "string") { term.write(new Uint8Array(ev.data)); return; }
       let m; try { m = JSON.parse(ev.data); } catch (_) { return; }
       if (m.t === "status") {
-        if (m.s === "connected") { setState("connected", "ok"); term.focus(); }
+        if (m.s === "connected") { setState("connected", "ok"); term.focus(); const c = document.getElementById("ssh-check"); if (c) c.remove(); }
         else if (m.s === "closed") {
           setState("closed", "");
           term.writeln("\r\n\x1b[2m[" + (m.m ? "\x1b[31m" + m.m + "\x1b[0m\x1b[2m" : "session closed") + "]\x1b[0m");
+        } else if (m.s === "check") {
+          setState("waiting for approval", "warn");
+          showCheck(m.m);
         } else { setState(m.s, "warn"); if (m.m) term.writeln("\x1b[2m" + m.m + "\x1b[0m"); }
       } else if (m.t === "prompt") {
         prompt = { echo: !!m.echo, buf: "" };
