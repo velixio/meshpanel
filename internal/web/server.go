@@ -109,11 +109,15 @@ type Server struct {
 	static  http.Handler
 	start   time.Time
 	assetV  string
+	// userLimit throttles an account across all IPs, gently: harsh limits
+	// there would let anyone lock a known user out.
+	userLimit *auth.Limiter
 }
 
 func New(d Deps) (*Server, error) {
 	s := &Server{Deps: d, base: d.Cfg.Server.BasePath, start: time.Now()}
 	auth.SetSecretKey(d.Cfg.Server.SessionSecret)
+	s.userLimit = auth.NewLimiterWith(20, time.Minute)
 	// Asset URLs change with every release (and every restart of dev builds).
 	s.assetV = d.Version
 	if s.assetV == "" || s.assetV == "dev" {

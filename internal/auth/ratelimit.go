@@ -15,9 +15,11 @@ const (
 // by IP and by account. The first five failures are free; then each failure
 // doubles the wait, starting at 2s and capped at 15 minutes.
 type Limiter struct {
-	mu  sync.Mutex
-	m   map[string]*entry
-	now func() time.Time
+	mu   sync.Mutex
+	m    map[string]*entry
+	now  func() time.Time
+	free int
+	max  time.Duration
 }
 
 type entry struct {
@@ -26,8 +28,11 @@ type entry struct {
 	last     time.Time
 }
 
-func NewLimiter() *Limiter {
-	return &Limiter{m: map[string]*entry{}, now: time.Now}
+func NewLimiter() *Limiter { return NewLimiterWith(freeFailures, maxBackoff) }
+
+// NewLimiterWith allows free failures before backoff starts, capped at max.
+func NewLimiterWith(free int, max time.Duration) *Limiter {
+	return &Limiter{m: map[string]*entry{}, now: time.Now, free: free, max: max}
 }
 
 func (l *Limiter) Allow(key string) (bool, time.Duration) {
@@ -60,10 +65,10 @@ func (l *Limiter) Fail(key string) int {
 	}
 	e.failures++
 	e.last = now
-	if e.failures > freeFailures {
-		d := time.Second << (e.failures - freeFailures)
-		if d > maxBackoff || d <= 0 {
-			d = maxBackoff
+	if e.failures > l.free {
+		d := time.Second << min(e.failures-l.free, 30)
+		if d > l.max || d <= 0 {
+			d = l.max
 		}
 		e.until = now.Add(d)
 	}

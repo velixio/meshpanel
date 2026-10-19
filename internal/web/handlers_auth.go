@@ -70,9 +70,14 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		s.render(w, r, "login", p)
 	}
-	ipKey, userKey := "ip:"+clientIP(r), "user:"+username
-	for _, k := range []string{ipKey, userKey} {
-		if ok, wait := s.Limiter.Allow(k); !ok {
+	// Full backoff per IP and per (account, IP); only a gentle cap per
+	// account, so failures from one place can't lock the owner out.
+	ipKey, pairKey, userKey := "ip:"+clientIP(r), "pair:"+username+"|"+clientIP(r), "user:"+username
+	for _, l := range []struct {
+		lim *auth.Limiter
+		key string
+	}{{s.Limiter, ipKey}, {s.Limiter, pairKey}, {s.userLimit, userKey}} {
+		if ok, wait := l.lim.Allow(l.key); !ok {
 			fail(fmt.Sprintf("Too many attempts. Try again in %s.", wait.Round(time.Second)))
 			return
 		}
@@ -84,13 +89,15 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 	}
 	if !auth.VerifyPassword(hash, r.PostFormValue("password")) {
 		s.Limiter.Fail(ipKey)
-		if n := s.Limiter.Fail(userKey); n == 5 || n%20 == 0 {
+		s.Limiter.Fail(pairKey)
+		if n := s.userLimit.Fail(userKey); n == 5 || n%20 == 0 {
 			s.securityAlert(fmt.Sprintf("%d failed sign-ins for %q, latest from %s", n, username, clientIP(r)))
 		}
 		fail("Wrong username or password.")
 		return
 	}
 	s.Limiter.Reset(ipKey)
+	s.Limiter.Reset(pairKey)
 	if id := who(r); id != nil {
 		_ = s.Sessions.Revoke(ctx, id.Session.ID)
 	}
@@ -174,7 +181,7 @@ func (s *Server) twoFAPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Limiter.Reset(key)
-	s.Limiter.Reset("user:" + id.Account.Username)
+	s.userLimit.Reset("user:" + id.Account.Username)
 	s.finishLogin(w, r, id, form.Next)
 	if usedBackup {
 		left := s.DB.RemainingBackupCodes(ctx, id.Account.ID)

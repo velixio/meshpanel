@@ -153,7 +153,8 @@ func (s *Server) page(w http.ResponseWriter, r *http.Request, nav, title string,
 	}
 	if s.Poller != nil && !s.Poller.Healthy() {
 		p.Healthy = false
-		if err := s.Poller.LastError(); err != nil {
+		// Socket paths and internal errors are for admins only.
+		if err := s.Poller.LastError(); err != nil && p.Caps.Has(perm.ConfigureIAM) {
 			p.HSError = err.Error()
 		}
 	}
