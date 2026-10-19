@@ -134,7 +134,9 @@
       document.body.classList.toggle("nav-open");
       return;
     }
-    if (document.body.classList.contains("nav-open") && !e.target.closest(".side")) {
+    // The mobile drawer closes on any click outside it, and on choosing a
+    // page inside it (a boosted link swaps the body but keeps its classes).
+    if (document.body.classList.contains("nav-open") && (!e.target.closest(".side") || e.target.closest(".side a[href]"))) {
       document.body.classList.remove("nav-open");
     }
     // Close other open dropdown menus.
@@ -320,5 +322,10 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => { connect(); tick(); localTimes(); autoDismiss(document); pollStatus(); });
-  document.addEventListener("htmx:afterSwap", (e) => { tick(); localTimes(e.target); autoDismiss(e.target); });
+  document.addEventListener("htmx:afterSwap", (e) => {
+    // A page change (boosted navigation swaps <body>) never leaves the drawer open.
+    if (e.target === document.body) document.body.classList.remove("nav-open");
+    tick(); localTimes(e.target); autoDismiss(e.target);
+  });
+  window.addEventListener("pageshow", () => document.body.classList.remove("nav-open"));
 })();
