@@ -1,0 +1,19 @@
+{{define "content"}}{{$d := .Data}}
+<link rel="stylesheet" href="{{.Base}}/static/vendor/xterm.css?v={{.AssetV}}">
+<div class="page-head">
+  <div><div class="crumbs"><a href="{{.Base}}/machines">Machines</a>{{icon "chev"}}<a href="{{.Base}}/machines/{{$d.Node.ID}}">{{$d.Node.DisplayName}}</a>{{icon "chev"}}</div>
+    <h1 class="row">SSH <span class="badge" id="ssh-state">not connected</span></h1>
+    <p class="sub">Connects to <span class="mono">{{$d.Target}}</span> as your tailnet user <b>{{.Me.HSUser}}</b>, so the access policy's SSH rules for you apply.</p></div>
+  <form class="inline-form" id="ssh-form" hx-boost="false">
+    <label class="small muted" for="ssh-user">Log in as</label>
+    <input class="input mono" id="ssh-user" value="{{$d.User}}" pattern="[A-Za-z_][A-Za-z0-9_.\-]{0,31}" style="width:150px" required>
+    <button class="btn primary" id="ssh-connect" type="submit">{{icon "zap"}}Connect</button>
+    <button class="btn" id="ssh-disconnect" type="button" hidden>Disconnect</button>
+  </form>
+</div>
+<div class="card ssh-card"><div id="terminal" class="terminal-host" data-ws="{{.Base}}/machines/{{$d.Node.ID}}/ssh/ws"></div></div>
+<p class="small muted mt">The machine needs Tailscale SSH (<code>tailscale set --ssh</code>) and a policy rule letting you in, or a regular SSH server on port 22 (you'll be asked for a password). Sessions are recorded in the audit log.</p>
+<script src="{{.Base}}/static/vendor/xterm.js?v={{.AssetV}}"></script>
+<script src="{{.Base}}/static/vendor/addon-fit.js?v={{.AssetV}}"></script>
+<script src="{{.Base}}/static/js/ssh.js?v={{.AssetV}}"></script>
+{{end}}

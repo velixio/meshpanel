@@ -57,13 +57,18 @@ People who are allowed to approve their own devices skip the wait.
   - **Users and pre-auth keys:** keys come with a QR code and per-OS setup steps.
   - **Access policy:** a visual editor plus a HuJSON editor. Changes are checked with headscale, shown as a diff, then applied.
   - **DNS:** MagicDNS, nameservers, split DNS and extra records. Changes are written to `config.yaml` with comments kept, a backup is taken, and headscale is restarted. The old file is restored if headscale doesn't come back.
+- **Device info (optional).** A small built-in tailnet node reads each machine's OS, model, Tailscale version and endpoints, and shows them in the machine list and detail page.
+- **Browser SSH terminal (optional).** Open a shell on a machine from the dashboard.
+  - Each session joins the tailnet as **your own headscale user** (a short-lived node, deleted afterwards), so Tailscale SSH rules apply to you, not to the panel.
+  - Works with Tailscale SSH and with a regular sshd (you're prompted for a password).
+  - Sessions are recorded in the audit log.
 - **Live UI.** The browser updates over WebSocket and falls back to polling. There's a <kbd>Ctrl</kbd>+<kbd>K</kbd> command palette.
 - **Audit log** of every change: who made it, through which channel (web, Telegram or CLI), and before/after values. It can be exported to CSV.
 - **Three themes:** Paper (default), Midnight and Console, plus "follow system". Each person picks their own. Admins can set a company accent color and logo.
 - **Small and self-contained.**
-  - A single static binary (about 15 MB) with pure-Go SQLite.
+  - A single static binary (about 30 MB, including the embedded Tailscale client for the optional features) with pure-Go SQLite.
   - No Node, Docker or CDN.
-  - Idles at a few tens of MB of RAM.
+  - Idles at about 40 MB of RAM. The optional agent adds roughly 15 MB, and each open SSH session adds a little more while it's open.
 
 <p align="center">
   <img src="docs/screenshots/machines.png" width="49%" alt="Machines">
@@ -126,6 +131,28 @@ For **nginx**, see [deploy/nginx.conf](deploy/nginx.conf). Keep the `Host` heade
 
 The bot uses long polling, so it needs no webhook or extra proxy route.
 
+### Device info and browser SSH
+
+Both are off by default. Turn them on in the config:
+
+```yaml
+agent:
+  enabled: true        # joins the tailnet as headscale user "meshpanel"
+web_ssh:
+  enabled: true        # sessions join as the signed-in person's headscale user
+```
+
+- **Agent visibility:** with a restrictive access policy, let the agent see devices. Ping is enough:
+
+  ```json
+  {"action": "accept", "src": ["meshpanel@"], "dst": ["*:*"], "proto": "icmp"}
+  ```
+
+- **Browser SSH:** the target machine needs Tailscale SSH (`tailscale set --ssh`) plus an `ssh` rule for the person, or a normal SSH server on port 22.
+- **Who can use it:** the new `web_ssh` permission. Members have it for their own devices; viewers and auditors don't.
+
+![Browser SSH](docs/screenshots/ssh.png)
+
 ### DNS and policy editing
 
 - **DNS:** set `headscale.config_path` and give meshpanel's group write access to that file. meshpanel restarts headscale through `headscale.restart_command`. The default uses `sudo`; install [deploy/sudoers](deploy/sudoers), or use the polkit rule in [docs/install.md](docs/install.md).
@@ -180,16 +207,15 @@ Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
 ## Roadmap
 
-- Optional host-info agent (OS/version per device via tsnet)
-- Browser SSH terminal
 - OIDC sign-in alongside local accounts
+- Session recording for browser SSH
 
 ## Development
 
 ```sh
 make test        # unit and HTTP tests
 make run         # build and run with the example config
-make lint size   # gofmt/vet, and keep the binary under 40 MB
+make lint size   # gofmt/vet, and keep the binary under 40 MB (built with TSTAGS)
 ```
 
 The UI uses server-rendered Go templates plus htmx, with no build step. CSS lives in `internal/web/static/css`: theme tokens in `tokens.css`, components in `app.css`. See [CONTRIBUTING.md](CONTRIBUTING.md).

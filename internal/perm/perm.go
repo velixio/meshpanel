@@ -34,6 +34,7 @@ const (
 	ManageNotifications
 	ReadAudit
 	ApproveSSH
+	WebSSH
 )
 
 func (c Cap) Has(x Cap) bool { return c&x == x }
@@ -69,6 +70,7 @@ var All = []Named{
 	{ManageNotifications, "manage_notifications", "Create alert rules for other people"},
 	{ReadAudit, "read_audit", "Read the audit log"},
 	{ApproveSSH, "approve_ssh", "Approve SSH sign-in checks"},
+	{WebSSH, "web_ssh", "Open SSH terminals in the browser (as their own tailnet user)"},
 }
 
 func everything() Cap {
@@ -86,11 +88,11 @@ var (
 	Roles = map[string]Cap{
 		"owner":         everything(),
 		"admin":         everything() &^ Owner,
-		"network_admin": readAll | WritePolicy | WriteNetwork | WriteTailnet | UseTags | ReadAudit,
-		"it_admin":      readAll | WriteMachines | WriteUsers | GenerateAuthkeys | UseTags | ApproveDevices | ApproveSSH | ReadAudit,
+		"network_admin": readAll | WritePolicy | WriteNetwork | WriteTailnet | UseTags | ReadAudit | WebSSH,
+		"it_admin":      readAll | WriteMachines | WriteUsers | GenerateAuthkeys | UseTags | ApproveDevices | ApproveSSH | ReadAudit | WebSSH,
 		"auditor":       readAll | ReadAudit,
 		"viewer":        readAll,
-		"member":        UIAccess | GenerateOwnAuthkeys,
+		"member":        UIAccess | GenerateOwnAuthkeys | WebSSH,
 	}
 
 	// RoleOrder is the display order, most powerful first.

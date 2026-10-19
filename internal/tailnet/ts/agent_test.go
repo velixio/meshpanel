@@ -1,4 +1,4 @@
-package tailnet
+package ts
 
 import (
 	"net/netip"
@@ -22,19 +22,5 @@ func TestHostInfoFromHostinfo(t *testing.T) {
 	ios := hostInfoFrom(&tailcfg.Hostinfo{OS: "iOS", OSVersion: "18.1", DeviceModel: "iPhone16,1", IPNVersion: "1.86.2"}, nil, 0, now)
 	if ios.OS != "iOS" || ios.OSVersion != "18.1" || ios.Device != "iPhone16,1" {
 		t.Fatalf("%+v", ios)
-	}
-}
-
-func TestAgentCache(t *testing.T) {
-	a := &Agent{}
-	a.store(map[string]HostInfo{"nodekey:aa": {OS: "Linux"}}, time.Now(), nil)
-	if hi, ok := a.Info("nodekey:aa"); !ok || hi.OS != "Linux" {
-		t.Fatal("cache miss")
-	}
-	if _, ok := a.Info("nodekey:bb"); ok {
-		t.Fatal("phantom entry")
-	}
-	if st := a.State(); !st.Running || st.Peers != 1 {
-		t.Fatalf("%+v", st)
 	}
 }

@@ -29,7 +29,15 @@ func nodeEvent(k Kind, n hs.Node, now time.Time) Event {
 	return Event{Kind: k, At: now, NodeID: n.ID, NodeName: n.DisplayName(), HSUser: n.UserName(), Tags: n.Tags}
 }
 
-func (d *Differ) Diff(next []hs.Node, now time.Time) []Event {
+func (d *Differ) Diff(all []hs.Node, now time.Time) []Event {
+	// Browser SSH sessions come and go as ephemeral nodes; they are not
+	// devices anyone wants alerts about.
+	next := make([]hs.Node, 0, len(all))
+	for _, n := range all {
+		if !n.IsWebSSH() {
+			next = append(next, n)
+		}
+	}
 	cur := make(map[string]hs.Node, len(next))
 	for _, n := range next {
 		cur[n.ID] = n

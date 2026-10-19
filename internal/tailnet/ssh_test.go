@@ -3,6 +3,7 @@ package tailnet
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -124,7 +125,7 @@ func TestSSHNeedsIdentity(t *testing.T) {
 
 func TestSanitizeHostname(t *testing.T) {
 	for in, want := range map[string]string{"ravi": "meshpanel-ssh-ravi", "Anna.Lee@x": "meshpanel-ssh-anna-lee-x", "": "meshpanel-ssh"} {
-		if got := sshHostname(in); got != want {
+		if got := SSHHostname(in); got != want {
 			t.Errorf("%q → %q want %q", in, got, want)
 		}
 	}
@@ -137,4 +138,17 @@ func tcpPairNoT() (net.Conn, net.Conn) {
 	go func() { c, _ := ln.Accept(); ch <- c }()
 	cli, _ := net.Dial("tcp", ln.Addr().String())
 	return cli, <-ch
+}
+
+type failingFactory struct{ err error }
+
+func (f failingFactory) Start(context.Context, string) (Node, error) { return nil, f.err }
+
+func TestSSHJoinTimeoutIsExplained(t *testing.T) {
+	m := &Manager{Nodes: failingFactory{fmt.Errorf("tsnet.Up: %w", context.DeadlineExceeded)}, MaxTotal: 1, MaxPerUser: 1}
+	term, _ := blockingTerm()
+	err := m.Open(context.Background(), 1, "ravi", "100.64.0.1", "root", term, Size{})
+	if err == nil || !strings.Contains(err.Error(), "control URL") {
+		t.Fatalf("err = %v", err)
+	}
 }

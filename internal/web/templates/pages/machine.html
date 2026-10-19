@@ -6,6 +6,7 @@
     <p class="sub">{{if $n.IsTagged}}Tagged device{{else}}Owned by <b>{{$n.UserName}}</b>{{if $d.Owner}} ({{$d.Owner.Name}}){{end}}{{end}}</p>
   </div>
   <div class="actions">
+    {{if $d.CanSSH}}<a class="btn" href="{{.Base}}/machines/{{$n.ID}}/ssh" hx-boost="false">{{icon "zap"}}SSH</a>{{end}}
     <form method="post" action="{{.Base}}/machines/{{$n.ID}}/watch">{{template "csrf" .CSRF}}{{if $d.Watching}}<input type="hidden" name="off" value="1"><button class="btn">{{icon "bell"}}Watching</button>{{else}}<button class="btn">{{icon "eye"}}Watch</button>{{end}}</form>
   </div>
 </div>
@@ -26,6 +27,22 @@
         </dl>
       </div>
     </section>
+
+    {{with $d.Host}}
+    <section class="card">
+      <div class="hd"><h2>Device</h2><span class="hint">from the tailnet agent · {{ago .Updated}}</span></div>
+      <div class="bd">
+        <dl class="kv">
+          <dt>System</dt><dd>{{.OS}}{{if .OSVersion}} <span class="muted">{{.OSVersion}}</span>{{end}}</dd>
+          {{if .Device}}<dt>Model</dt><dd>{{.Device}}</dd>{{end}}
+          {{if .Tailscale}}<dt>Tailscale</dt><dd>{{.Tailscale}}</dd>{{end}}
+          {{if .Hostname}}<dt>OS hostname</dt><dd class="mono">{{.Hostname}}</dd>{{end}}
+          {{if .Endpoints}}<dt>Endpoints</dt><dd class="mono small">{{join .Endpoints ", "}}</dd>{{end}}
+          {{if .HomeDERP}}<dt>Home DERP</dt><dd>region {{.HomeDERP}}</dd>{{end}}
+        </dl>
+      </div>
+    </section>
+    {{end}}
 
     {{if $n.AvailableRoutes}}
     <section class="card">

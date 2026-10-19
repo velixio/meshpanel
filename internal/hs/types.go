@@ -2,6 +2,7 @@ package hs
 
 import (
 	"net/netip"
+	"strings"
 	"time"
 )
 
@@ -139,3 +140,10 @@ type Policy struct {
 }
 
 var nowFunc = time.Now
+
+// WebSSHPrefix starts the hostname of every ephemeral node meshpanel's
+// browser SSH terminal creates.
+const WebSSHPrefix = "meshpanel-ssh"
+
+// IsWebSSH reports whether the node is a meshpanel browser-SSH session.
+func (n Node) IsWebSSH() bool { return strings.HasPrefix(n.Name, WebSSHPrefix) }

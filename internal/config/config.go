@@ -24,6 +24,7 @@ type Config struct {
 	DB        DB        `yaml:"db"`
 	Telegram  Telegram  `yaml:"telegram"`
 	Agent     Agent     `yaml:"agent"`
+	WebSSH    WebSSH    `yaml:"web_ssh"`
 	Log       Log       `yaml:"log"`
 }
 
@@ -59,8 +60,24 @@ type Telegram struct {
 	APIBase     string `yaml:"api_base"`
 }
 
+// Agent is the optional tailnet node that reads OS/version details of every
+// machine. It joins the tailnet as HSUser.
 type Agent struct {
-	Enabled bool `yaml:"enabled"`
+	Enabled    bool          `yaml:"enabled"`
+	HSUser     string        `yaml:"hs_user"`
+	Hostname   string        `yaml:"hostname"`
+	ControlURL string        `yaml:"control_url"` // default: headscale.http_url
+	StateDir   string        `yaml:"state_dir"`   // default: <db dir>/tailnet
+	Interval   time.Duration `yaml:"interval"`
+}
+
+// WebSSH is the browser SSH terminal. Each session joins the tailnet as the
+// signed-in person's headscale user.
+type WebSSH struct {
+	Enabled     bool   `yaml:"enabled"`
+	MaxSessions int    `yaml:"max_sessions"`
+	MaxPerUser  int    `yaml:"max_per_user"`
+	DefaultUser string `yaml:"default_user"`
 }
 
 type Log struct {
@@ -84,6 +101,8 @@ func Default() *Config {
 			PollInterval:   5 * time.Second,
 		},
 		DB:       DB{Path: "/var/lib/meshpanel/meshpanel.db"},
+		Agent:    Agent{HSUser: "meshpanel", Hostname: "meshpanel", Interval: time.Minute},
+		WebSSH:   WebSSH{MaxSessions: 10, MaxPerUser: 3, DefaultUser: "root"},
 		Telegram: Telegram{APIBase: "https://api.telegram.org"},
 		Log:      Log{Level: "info"},
 	}

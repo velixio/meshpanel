@@ -49,6 +49,8 @@ func TestEveryPageRendersForEveryRole(t *testing.T) {
 	pages := []string{"/admin/", "/admin/machines", "/admin/machines/1", "/admin/users", "/admin/people", "/admin/people/1",
 		"/admin/keys", "/admin/access", "/admin/access?tab=editor", "/admin/dns", "/admin/alerts", "/admin/audit",
 		"/admin/settings", "/admin/account", "/admin/approvals", "/admin/search?q=ra", "/admin/audit.csv"}
+	withSSH(h) // render with the agent and browser SSH turned on
+	pages = append(pages, "/admin/machines/1/ssh")
 	for _, role := range []string{"owner", "admin", "network_admin", "it_admin", "auditor", "viewer", "member"} {
 		_, secret := h.account("u-"+strings.ReplaceAll(role, "_", "-"), role, "ravi")
 		c := h.client()

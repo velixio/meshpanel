@@ -30,7 +30,8 @@ RestrictSUIDSGID=no
 LockPersonality=yes
 MemoryDenyWriteExecute=yes
 RestrictRealtime=yes
-RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+# AF_NETLINK: the optional tailnet agent / browser SSH watch network changes.
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 CapabilityBoundingSet=
 # NoNewPrivileges must stay off while restart_command uses sudo. If you use
 # the polkit rule from docs/install.md instead (restart_command:

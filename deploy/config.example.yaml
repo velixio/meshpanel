@@ -44,5 +44,26 @@ telegram:
   # Optional group chat that also receives approval cards (negative id).
   group_chat_id: 0
 
+# Optional: a small tailnet node that reads each machine's OS, Tailscale
+# version and endpoints. It joins as headscale user `hs_user` (created if
+# missing). With a restrictive policy, let it see peers, e.g.:
+#   {"action": "accept", "src": ["meshpanel@"], "dst": ["*:*"], "proto": "icmp"}
+agent:
+  enabled: false
+  hs_user: "meshpanel"
+  hostname: "meshpanel"
+  # control_url: ""          # default: headscale.http_url
+  # state_dir: ""            # default: <db dir>/tailnet/agent
+  interval: 1m
+
+# Optional: SSH terminals in the browser. Each session joins the tailnet as
+# the signed-in person's own headscale user (an ephemeral node, deleted when
+# the session closes), so Tailscale SSH policy applies to them personally.
+web_ssh:
+  enabled: false
+  max_sessions: 10
+  max_per_user: 3
+  default_user: "root"
+
 log:
   level: "info"

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/meshpanel/meshpanel/internal/hs"
 )
 
 var (
@@ -86,6 +88,9 @@ func (m *Manager) Open(ctx context.Context, account int64, hsUser, target, sshUs
 	node, err := m.Nodes.Start(sctx, hsUser)
 	cancel()
 	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return errors.New("couldn't join the tailnet in time: check that the control URL (agent.control_url, default headscale.http_url) reaches headscale")
+		}
 		return fmt.Errorf("joining the tailnet: %w", err)
 	}
 	defer node.Close()
@@ -106,18 +111,15 @@ func (m *Manager) Open(ctx context.Context, account int64, hsUser, target, sshUs
 
 var notLabel = regexp.MustCompile(`[^a-z0-9-]+`)
 
-// sshHostname makes the ephemeral node's name, e.g. meshpanel-ssh-ravi.
-func sshHostname(hsUser string) string {
+// SSHHostname makes the ephemeral node's name, e.g. meshpanel-ssh-ravi.
+func SSHHostname(hsUser string) string {
 	s := strings.Trim(notLabel.ReplaceAllString(strings.ToLower(hsUser), "-"), "-")
 	if s == "" {
-		return "meshpanel-ssh"
+		return hs.WebSSHPrefix
 	}
-	name := "meshpanel-ssh-" + s
+	name := hs.WebSSHPrefix + "-" + s
 	if len(name) > 63 {
 		name = strings.TrimRight(name[:63], "-")
 	}
 	return name
 }
-
-// IsSSHNode reports whether a node name belongs to a web SSH session.
-func IsSSHNode(name string) bool { return strings.HasPrefix(name, "meshpanel-ssh") }

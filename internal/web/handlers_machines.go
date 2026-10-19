@@ -13,6 +13,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/events"
 	"github.com/meshpanel/meshpanel/internal/hs"
 	"github.com/meshpanel/meshpanel/internal/perm"
+	"github.com/meshpanel/meshpanel/internal/tailnet"
 )
 
 type machineRow struct {
@@ -20,6 +21,7 @@ type machineRow struct {
 	Search string
 	State  string
 	Owner  string // panel account display name, if linked
+	OS     string // from the tailnet agent, when enabled
 }
 
 type machinesData struct {
@@ -75,6 +77,11 @@ func (s *Server) machines(w http.ResponseWriter, r *http.Request) {
 		if a, ok := owners[n.UserName()]; ok && a.Name() != n.UserName() {
 			row.Owner = a.Name()
 		}
+		if s.Agent != nil {
+			if hi, ok := s.Agent.Info(n.NodeKey); ok {
+				row.OS = strings.TrimSpace(hi.OS + " " + hi.OSVersion)
+			}
+		}
 		row.Search = strings.ToLower(strings.Join(append([]string{n.DisplayName(), n.Name, n.UserName(), row.Owner, strings.Join(n.Tags, " ")}, n.IPAddresses...), " "))
 		d.Rows = append(d.Rows, row)
 	}
@@ -92,6 +99,8 @@ type machineData struct {
 	LoginCmd   string
 	Users      []hs.User
 	PendingSet map[string]bool
+	Host       *tailnet.HostInfo
+	CanSSH     bool
 }
 
 func (s *Server) findNode(r *http.Request) (hs.Node, bool) {
@@ -119,6 +128,12 @@ func (s *Server) machine(w http.ResponseWriter, r *http.Request) {
 	for _, rt := range n.PendingRoutes() {
 		d.PendingSet[rt] = true
 	}
+	if s.Agent != nil {
+		if hi, ok := s.Agent.Info(n.NodeKey); ok {
+			d.Host = &hi
+		}
+	}
+	d.CanSSH = s.SSH != nil && id.Caps.Has(perm.WebSSH) && id.Account.HSUser != "" && len(n.IPAddresses) > 0
 	if owners, err := s.DB.AccountsByHSUser(ctx); err == nil {
 		d.Owner = owners[n.UserName()]
 	}
