@@ -9,7 +9,7 @@
   <h1>Waiting for approval</h1>
   <p class="lead">{{if eq $v.Kind "ssh"}}An approver has been asked to allow this SSH session.{{else}}An admin has been notified on Telegram. This page updates by itself, so keep it open.{{end}}</p>
   <div class="card" data-poll-status="{{$v.Path}}/status">
-    <div class="device"><span class="ico">{{icon "phone"}}</span><div><b>{{device $v.Pending.UserAgent}}</b><div class="small muted">Requested by {{.Me.Name}}{{if $v.Pending.HSUser}} · user <code>{{$v.Pending.HSUser}}</code>{{end}}</div></div></div>
+    <div class="device"><span class="ico">{{icon "phone"}}</span><div><b>Device request</b><div class="small muted">Link opened on {{device $v.Pending.UserAgent}} · requested by {{.Me.Name}}{{if $v.Pending.HSUser}} · user <code>{{$v.Pending.HSUser}}</code>{{end}}</div></div></div>
     <div class="row between small"><span class="muted">Expires in about</span><span class="countdown" data-countdown="{{unix $v.Pending.ExpiresAt}}" data-on-zero="reload">15:00</span></div>
     {{if not $v.Pending.HSUser}}{{if eq $v.Kind "register"}}<div class="banner warn">{{icon "info"}}<div>Your account isn't linked to a headscale user yet. The approver will pick one.</div></div>{{end}}{{end}}
     <form method="post" action="{{$v.Path}}/cancel">{{template "csrf" .CSRF}}<button class="btn block">Cancel request</button></form>
@@ -20,7 +20,7 @@
   <p class="lead">to {{.Brand.Name}}, as <b>{{.Me.Name}}</b></p>
   <form class="card" method="post" action="{{$v.Path}}">
     {{template "csrf" .CSRF}}
-    <div class="device"><span class="ico">{{if eq $v.Kind "ssh"}}{{icon "lock"}}{{else}}{{icon "phone"}}{{end}}</span><div><b>{{if eq $v.Kind "ssh"}}SSH sign-in check{{else}}{{device $v.Device}}{{end}}</b><div class="small muted">{{$v.IP}}</div></div></div>
+    <div class="device"><span class="ico">{{if eq $v.Kind "ssh"}}{{icon "lock"}}{{else}}{{icon "phone"}}{{end}}</span><div><b>{{if eq $v.Kind "ssh"}}SSH sign-in check{{else}}A device is asking to join{{end}}</b><div class="small muted">Link opened on {{device $v.Device}} · {{$v.IP}}. The device itself isn't shown here; it may be a different one.</div></div></div>
     <div class="banner warn">{{icon "alert"}}<div>Only continue if <b>you</b> just opened {{if eq $v.Kind "ssh"}}this SSH session{{else}}the Tailscale app on the device you want to add{{end}}. If someone sent you this link, stop: it would add <b>their</b> device to your account.</div></div>
     {{if eq $v.Kind "ssh"}}
       {{if $v.CanSSH}}

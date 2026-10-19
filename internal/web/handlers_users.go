@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"sort"
@@ -205,6 +206,10 @@ func (s *Server) inviteCreate(w http.ResponseWriter, r *http.Request) {
 	if hsUser == "_new" {
 		hsUser = ""
 	}
+	if err := s.hsUserTaken(ctx, id, hsUser, 0); err != nil {
+		s.failed(w, r, "", err)
+		return
+	}
 	tok := auth.RandomToken(24)
 	err := s.DB.CreateInvite(ctx, db.Invite{
 		TokenHash: auth.HashToken(tok), Username: username, Role: role, HSUser: hsUser,
@@ -327,6 +332,10 @@ func (s *Server) personAction(w http.ResponseWriter, r *http.Request) {
 			s.failed(w, r, here, errors.New("no headscale user named "+hsUser))
 			return
 		}
+		if err := s.hsUserTaken(ctx, id, hsUser, acc.ID); err != nil {
+			s.failed(w, r, here, err)
+			return
+		}
 		before := acc.HSUser
 		acc.HSUser = hsUser
 		if err := s.DB.UpdateAccount(ctx, acc); err != nil {
@@ -395,4 +404,23 @@ func (s *Server) personAction(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// hsUserTaken refuses linking to a headscale user another account already
+// acts as: that would let the linker act as that person on the tailnet.
+// Only an Owner may share one.
+func (s *Server) hsUserTaken(ctx context.Context, id *identity, hsUser string, accID int64) error {
+	if hsUser == "" || id.Caps.Has(perm.Owner) {
+		return nil
+	}
+	accs, err := s.DB.ListAccounts(ctx)
+	if err != nil {
+		return err
+	}
+	for _, a := range accs {
+		if a.ID != accID && a.HSUser == hsUser {
+			return errors.New("headscale user " + hsUser + " is already linked to " + a.Name() + "; only an owner can share it")
+		}
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package web
 
 import (
 	"context"
+	"crypto/subtle"
 	"errors"
 	"fmt"
 	"net/http"
@@ -73,14 +74,26 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 	// Full backoff per IP and per (account, IP); only a gentle cap per
 	// account, so failures from one place can't lock the owner out.
 	ipKey, pairKey, userKey := "ip:"+clientIP(r), "pair:"+username+"|"+clientIP(r), "user:"+username
-	for _, l := range []struct {
+	type slot struct {
 		lim *auth.Limiter
 		key string
-	}{{s.Limiter, ipKey}, {s.Limiter, pairKey}, {s.userLimit, userKey}} {
-		if ok, wait := l.lim.Allow(l.key); !ok {
+	}
+	var held []slot
+	failed := true
+	defer func() {
+		for _, h := range held {
+			if n := h.lim.Release(h.key, failed); failed && h.key == userKey && (n == 5 || n%20 == 0) {
+				s.securityAlert(fmt.Sprintf("%d failed sign-ins for %q, latest from %s", n, username, clientIP(r)))
+			}
+		}
+	}()
+	for _, l := range []slot{{s.Limiter, ipKey}, {s.Limiter, pairKey}, {s.userLimit, userKey}} {
+		if ok, wait := l.lim.Acquire(l.key); !ok {
+			failed = false // a refused attempt isn't a new failure
 			fail(fmt.Sprintf("Too many attempts. Try again in %s.", wait.Round(time.Second)))
 			return
 		}
+		held = append(held, l)
 	}
 	acc, err := s.DB.GetAccountByUsername(ctx, username)
 	hash := ""
@@ -88,14 +101,10 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 		hash = acc.PasswordHash
 	}
 	if !auth.VerifyPassword(hash, r.PostFormValue("password")) {
-		s.Limiter.Fail(ipKey)
-		s.Limiter.Fail(pairKey)
-		if n := s.userLimit.Fail(userKey); n == 5 || n%20 == 0 {
-			s.securityAlert(fmt.Sprintf("%d failed sign-ins for %q, latest from %s", n, username, clientIP(r)))
-		}
 		fail("Wrong username or password.")
 		return
 	}
+	failed = false
 	s.Limiter.Reset(ipKey)
 	s.Limiter.Reset(pairKey)
 	if id := who(r); id != nil {
@@ -152,7 +161,7 @@ func (s *Server) twoFAPost(w http.ResponseWriter, r *http.Request) {
 	form := s.authContext(r.PostFormValue("next"), r)
 	form.Username = id.Account.Username
 	key := "2fa:" + id.Account.Username
-	if ok, wait := s.Limiter.Allow(key); !ok {
+	if ok, wait := s.Limiter.Acquire(key); !ok {
 		form.Error = fmt.Sprintf("Too many attempts. Try again in %s.", wait.Round(time.Second))
 		w.WriteHeader(http.StatusTooManyRequests)
 		s.render(w, r, "twofa", s.page(w, r, "", "Two-factor code", form))
@@ -171,10 +180,10 @@ func (s *Server) twoFAPost(w http.ResponseWriter, r *http.Request) {
 		ok = auth.UseBackupCode(ctx, s.DB, id.Account.ID, code)
 		usedBackup = ok
 	}
+	if n := s.Limiter.Release(key, !ok); n == 5 {
+		s.securityAlert(fmt.Sprintf("5 wrong 2FA codes for %q from %s", id.Account.Username, clientIP(r)))
+	}
 	if !ok {
-		if n := s.Limiter.Fail(key); n == 5 {
-			s.securityAlert(fmt.Sprintf("5 wrong 2FA codes for %q from %s", id.Account.Username, clientIP(r)))
-		}
 		form.Error = "That code didn't work. Check your authenticator app's time and try again."
 		w.WriteHeader(http.StatusUnauthorized)
 		s.render(w, r, "twofa", s.page(w, r, "", "Two-factor code", form))
@@ -215,6 +224,9 @@ func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 
 // ---------- first-run setup ----------
 
+// SetupToken is the one-time code the setup form asks for.
+func (s *Server) SetupToken() string { return s.setupToken }
+
 func (s *Server) setupOpen(ctx context.Context) bool {
 	n, err := s.DB.CountAccounts(ctx)
 	return err == nil && n == 0
@@ -250,7 +262,11 @@ func (s *Server) setupPost(w http.ResponseWriter, r *http.Request) {
 	username := strings.ToLower(strings.TrimSpace(r.PostFormValue("username")))
 	form := authForm{Username: username}
 	pw := r.PostFormValue("password")
-	if err := validateNewAccount(username, pw, r.PostFormValue("confirm")); err != nil {
+	err := validateNewAccount(username, pw, r.PostFormValue("confirm"))
+	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(r.PostFormValue("setup_token"))), []byte(s.setupToken)) != 1 {
+		err = errors.New("Wrong setup code. It's in meshpanel's log (journalctl -u meshpanel).")
+	}
+	if err != nil {
 		form.Error = err.Error()
 		w.WriteHeader(http.StatusBadRequest)
 		s.render(w, r, "setup", s.page(w, r, "", "Set up meshpanel", form))
@@ -263,7 +279,7 @@ func (s *Server) setupPost(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: hash, Role: "owner", HSUser: hsUser,
 	})
 	if err != nil {
-		form.Error = "Could not create the account: " + err.Error()
+		form.Error = "Could not create the account. " + internal(err)
 		s.render(w, r, "setup", s.page(w, r, "", "Set up meshpanel", form))
 		return
 	}
@@ -273,7 +289,7 @@ func (s *Server) setupPost(w http.ResponseWriter, r *http.Request) {
 func (s *Server) startEnrollment(w http.ResponseWriter, r *http.Request, acc *db.Account, next string) {
 	tok, err := s.Sessions.Create(r.Context(), acc.ID, clientIP(r), r.UserAgent(), false)
 	if err != nil {
-		s.renderError(w, r, 500, "Something went wrong", err.Error())
+		s.renderError(w, r, 500, "Something went wrong", internal(err))
 		return
 	}
 	s.setSessionCookie(w, tok)
@@ -326,7 +342,7 @@ func (s *Server) invitePost(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: pwHash, Role: in.Role, HSUser: hsUser,
 	})
 	if err != nil {
-		form.Error = "Could not create the account: " + err.Error()
+		form.Error = "Could not create the account. " + internal(err)
 		s.render(w, r, "invite", s.page(w, r, "", "Join", form))
 		return
 	}
@@ -373,7 +389,7 @@ func (s *Server) enrollPage(w http.ResponseWriter, r *http.Request) {
 		} else {
 			acc.TOTPSecret = sealed
 			if err := s.DB.UpdateAccount(ctx, acc); err != nil {
-				s.renderError(w, r, 500, "Something went wrong", err.Error())
+				s.renderError(w, r, 500, "Something went wrong", internal(err))
 				return
 			}
 		}
@@ -398,6 +414,12 @@ func (s *Server) enrollPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	acc := id.Account
+	if acc.TOTPEnabled && !id.Session.MFAOK {
+		// Already enrolled: a password-only session signs in at /login/2fa,
+		// never here (this would skip the one-use check and reset backup codes).
+		http.Redirect(w, r, s.base+"/login/2fa", http.StatusSeeOther)
+		return
+	}
 	reset := id.Session.MFAOK && acc.TOTPEnabled
 	secret := acc.TOTPSecret
 	pendingKey := fmt.Sprintf("pending_totp.%d", acc.ID)
@@ -405,9 +427,18 @@ func (s *Server) enrollPost(w http.ResponseWriter, r *http.Request) {
 		secret = s.DB.GetSetting(ctx, pendingKey)
 	}
 	key := "2fa:" + acc.Username
+	allowed, _ := s.Limiter.Acquire(key)
 	step, valid := auth.ValidateTOTPStep(secret, r.PostFormValue("code"), time.Now())
-	if ok, _ := s.Limiter.Allow(key); !ok || secret == "" || !valid {
-		s.Limiter.Fail(key)
+	if allowed && valid && secret != "" {
+		// Each code works once, here as at sign-in.
+		if fresh, err := s.DB.UseTOTPStep(ctx, acc.ID, step); err != nil || !fresh {
+			valid = false
+		}
+	}
+	if allowed {
+		s.Limiter.Release(key, !valid || secret == "")
+	}
+	if !allowed || secret == "" || !valid {
 		q := url.Values{"next": {r.PostFormValue("next")}}
 		if reset {
 			q.Set("reset", "1")
@@ -419,14 +450,13 @@ func (s *Server) enrollPost(w http.ResponseWriter, r *http.Request) {
 	s.Limiter.Reset(key)
 	acc.TOTPSecret, acc.TOTPEnabled = secret, true
 	if err := s.DB.UpdateAccount(ctx, acc); err != nil {
-		s.renderError(w, r, 500, "Something went wrong", err.Error())
+		s.renderError(w, r, 500, "Something went wrong", internal(err))
 		return
 	}
-	_, _ = s.DB.UseTOTPStep(ctx, acc.ID, step)
 	_ = s.DB.SetSetting(ctx, pendingKey, "")
 	codes, err := auth.NewBackupCodes(ctx, s.DB, acc.ID)
 	if err != nil {
-		s.renderError(w, r, 500, "Something went wrong", err.Error())
+		s.renderError(w, r, 500, "Something went wrong", internal(err))
 		return
 	}
 	_ = s.DB.InsertAudit(ctx, db.AuditEntry{ActorID: acc.ID, Actor: acc.Username, Channel: "web", Action: "2fa.enroll", Target: acc.Username, IP: clientIP(r)})
@@ -435,7 +465,7 @@ func (s *Server) enrollPost(w http.ResponseWriter, r *http.Request) {
 		_ = s.Sessions.Revoke(ctx, id.Session.ID)
 		tok, err := s.Sessions.Create(ctx, acc.ID, clientIP(r), r.UserAgent(), true)
 		if err != nil {
-			s.renderError(w, r, 500, "Sign-in failed", err.Error())
+			s.renderError(w, r, 500, "Sign-in failed", internal(err))
 			return
 		}
 		s.setSessionCookie(w, tok)

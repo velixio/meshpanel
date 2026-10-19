@@ -71,7 +71,7 @@ func (s *Server) auditCSV(w http.ResponseWriter, r *http.Request) {
 	f.Limit, f.Offset = 100000, 0
 	entries, err := s.DB.ListAudit(r.Context(), f)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, internal(err), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")

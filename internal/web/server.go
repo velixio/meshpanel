@@ -118,10 +118,13 @@ type Server struct {
 	// userLimit throttles an account across all IPs, gently: harsh limits
 	// there would let anyone lock a known user out.
 	userLimit *auth.Limiter
+	// setupToken gates first-run setup, so whoever reaches the port first
+	// can't claim the owner account. It's printed to the log at startup.
+	setupToken string
 }
 
 func New(d Deps) (*Server, error) {
-	s := &Server{Deps: d, base: d.Cfg.Server.BasePath, start: time.Now()}
+	s := &Server{Deps: d, base: d.Cfg.Server.BasePath, start: time.Now(), setupToken: auth.RandomToken(12)}
 	auth.SetSecretKey(d.Cfg.Server.SessionSecret)
 	s.userLimit = auth.NewLimiterWith(20, time.Minute)
 	// Asset URLs change with every release (and every restart of dev builds).

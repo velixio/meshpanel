@@ -186,7 +186,7 @@ func (s *Server) deployPost(w http.ResponseWriter, r *http.Request) {
 			}
 			if req.User == "" && len(req.ACLTags) == 0 {
 				err = errors.New("choose whose device this is, or give it tags")
-			} else {
+			} else if err = s.checkKeyLimit(ctx, id, userName, req); err == nil {
 				var key hs.PreAuthKey
 				key, err = s.HS.CreatePreAuthKey(ctx, req)
 				if err == nil {

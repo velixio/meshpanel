@@ -119,11 +119,66 @@ func (d *Dispatcher) allowLoopback() {
 }
 
 // blockedTarget refuses addresses a webhook must never reach: the panel's
-// own host, link-local (cloud metadata at 169.254.169.254), unspecified and
-// multicast. Private LAN ranges stay allowed (internal chat servers).
+// own host, link-local and other cloud metadata endpoints, unspecified and
+// multicast, including IPv4 hidden inside IPv6 (NAT64, 6to4, compatible).
+// Private LAN ranges stay allowed (internal chat servers).
 func blockedTarget(ip netip.Addr) bool {
 	ip = ip.Unmap()
-	return ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast()
+	if v4, ok := embeddedV4(ip); ok && blockedTarget(v4) {
+		return true
+	}
+	for _, p := range metadataPrefixes {
+		if p.Contains(ip) {
+			return true
+		}
+	}
+	return ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast() || ownAddr(ip)
+}
+
+// metadataPrefixes are cloud metadata services outside link-local.
+var metadataPrefixes = []netip.Prefix{
+	netip.MustParsePrefix("fd00:ec2::/64"),      // AWS IMDS over IPv6
+	netip.MustParsePrefix("100.100.100.200/32"), // Alibaba Cloud
+}
+
+var (
+	nat64     = netip.MustParsePrefix("64:ff9b::/96")
+	nat64L    = netip.MustParsePrefix("64:ff9b:1::/48")
+	sixToFour = netip.MustParsePrefix("2002::/16")
+	compat    = netip.MustParsePrefix("::/96")
+)
+
+// embeddedV4 extracts an IPv4 address carried inside an IPv6 one.
+func embeddedV4(ip netip.Addr) (netip.Addr, bool) {
+	if !ip.Is6() {
+		return netip.Addr{}, false
+	}
+	b := ip.As16()
+	switch {
+	case nat64.Contains(ip), nat64L.Contains(ip), compat.Contains(ip):
+		return netip.AddrFrom4([4]byte(b[12:16])), true
+	case sixToFour.Contains(ip):
+		return netip.AddrFrom4([4]byte(b[2:6])), true
+	}
+	return netip.Addr{}, false
+}
+
+// ownAddr reports whether ip belongs to one of this host's interfaces (its
+// LAN and tailnet addresses reach the panel and headscale like loopback).
+// Loopback itself is left to IsLoopback so tests can allow it.
+func ownAddr(ip netip.Addr) bool {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return false
+	}
+	for _, a := range addrs {
+		if n, ok := a.(*net.IPNet); ok {
+			if own, ok := netip.AddrFromSlice(n.IP); ok && !own.IsLoopback() && own.Unmap() == ip {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 var errBlocked = errors.New("this address is not allowed for webhooks (loopback, link-local and similar are blocked)")

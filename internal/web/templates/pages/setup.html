@@ -4,6 +4,7 @@
 <form class="card" method="post" action="{{.Base}}/setup" hx-boost="false">
   {{template "csrf" .CSRF}}
   {{if $f.Error}}<div class="banner danger" role="alert">{{icon "alert"}}<div>{{$f.Error}}</div></div>{{end}}
+  <label class="field">Setup code <span class="help">Printed in meshpanel's log at startup (journalctl -u meshpanel).</span><input class="input" name="setup_token" autocapitalize="none" autocomplete="off" spellcheck="false" required></label>
   <label class="field">Username<input class="input" name="username" value="{{$f.Username}}" autocapitalize="none" autocomplete="username" required autofocus></label>
   <label class="field">Display name <span class="help">Optional. Shown in approvals and the audit log.</span><input class="input" name="display_name" autocomplete="name"></label>
   <label class="field">Your headscale user <span class="help">Optional. Your own devices register under this headscale user.</span><input class="input" name="hs_user" autocapitalize="none" placeholder="e.g. anna"></label>

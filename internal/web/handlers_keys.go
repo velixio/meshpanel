@@ -111,6 +111,10 @@ func (s *Server) keyCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if err := s.checkKeyLimit(ctx, id, userName, req); err != nil {
+		s.failed(w, r, "", err)
+		return
+	}
 	key, err := s.HS.CreatePreAuthKey(ctx, req)
 	if err != nil {
 		s.failed(w, r, "", err)

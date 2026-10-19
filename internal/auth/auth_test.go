@@ -179,3 +179,24 @@ func TestSecretSealing(t *testing.T) {
 		t.Fatal("wrong key must not decrypt")
 	}
 }
+
+func TestLimiterAcquireCountsInFlight(t *testing.T) {
+	l := NewLimiterWith(2, time.Minute)
+	got := 0
+	for i := 0; i < 10; i++ { // ten parallel attempts, none finished yet
+		if ok, _ := l.Acquire("k"); ok {
+			got++
+		}
+	}
+	if got != 2 {
+		t.Fatalf("%d attempts in flight, want 2", got)
+	}
+	l.Release("k", true)
+	l.Release("k", true)
+	if ok, _ := l.Acquire("k"); !ok {
+		t.Fatal("past the free attempts, one at a time should still be allowed")
+	}
+	if ok, _ := l.Acquire("k"); ok {
+		t.Fatal("a second parallel attempt past the free ones was allowed")
+	}
+}

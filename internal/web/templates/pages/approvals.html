@@ -12,7 +12,7 @@
     {{range $d.Recent}}<tr>
       <td>{{index $d.Names .RequesterID}}</td>
       <td>{{if eq .Kind "ssh"}}SSH check{{else}}Device{{end}}</td>
-      <td class="hide-sm">{{if .NodeName}}{{.NodeName}}{{else}}{{device .UserAgent}}{{end}}</td>
+      <td class="hide-sm">{{if .NodeName}}{{.NodeName}}{{else}}<span class="muted">opened on</span> {{device .UserAgent}}{{end}}</td>
       <td>{{if eq .Status "approved"}}<span class="badge ok">approved</span>{{else if eq .Status "denied"}}<span class="badge danger">denied</span>{{else if eq .Status "failed"}}<span class="badge danger" title="{{.Error}}">failed</span>{{else}}<span class="badge">{{.Status}}</span>{{end}}</td>
       <td class="hide-sm">{{if .DecidedBy}}{{.DecidedBy}} <span class="faint small">via {{.DecidedVia}}</span>{{else}}—{{end}}</td>
       <td class="nowrap"><span data-ago="{{unix .CreatedAt}}">{{ago .CreatedAt}}</span></td>

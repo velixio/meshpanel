@@ -188,6 +188,9 @@ func (s *Server) registerSelfDecide(w http.ResponseWriter, r *http.Request) {
 	} else {
 		allowed = perm.CanApproveAs(id.Caps, id.Account.HSUser, p.HSUser, asUser)
 	}
+	if approve && s.overLimitSelfApprove(r.Context(), id, p, asUser) {
+		allowed = false
+	}
 	if !allowed {
 		s.renderError(w, r, http.StatusForbidden, "Not allowed", "You don't have permission to approve this. An approver has been notified.")
 		return

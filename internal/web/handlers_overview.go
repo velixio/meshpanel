@@ -125,8 +125,9 @@ func (s *Server) approvalDecide(w http.ResponseWriter, r *http.Request) {
 	}
 	approve := r.PostFormValue("decision") == "approve"
 	asUser := strings.TrimSpace(r.PostFormValue("as_user"))
-	allowed := canDecide(id, p)
-	if p.Kind == registration.KindRegister && asUser != "" {
+	// The requester never decides from the queue; that's the approver's call.
+	allowed := p.RequesterID != id.Account.ID && canDecide(id, p)
+	if allowed && p.Kind == registration.KindRegister && asUser != "" {
 		allowed = perm.CanApproveAs(id.Caps, id.Account.HSUser, p.HSUser, asUser)
 	}
 	if !allowed {

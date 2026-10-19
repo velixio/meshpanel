@@ -24,6 +24,7 @@ type Limiter struct {
 
 type entry struct {
 	failures int
+	inflight int
 	until    time.Time
 	last     time.Time
 }
@@ -53,6 +54,45 @@ func (l *Limiter) Allow(key string) (bool, time.Duration) {
 	return true, 0
 }
 
+// Acquire is Allow plus a reservation: an attempt still in flight counts as
+// a failure until Release, so parallel requests can't all pass the check
+// before any of them has failed. Past the free attempts, one at a time.
+func (l *Limiter) Acquire(key string) (bool, time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	now := l.now()
+	e := l.m[key]
+	if e != nil && e.inflight == 0 && now.Sub(e.last) > forgetAfter {
+		e = nil
+	}
+	if e == nil {
+		e = &entry{last: now}
+		l.m[key] = e
+	}
+	if now.Before(e.until) {
+		return false, e.until.Sub(now)
+	}
+	if e.inflight > 0 && e.failures+e.inflight >= l.free {
+		return false, time.Second
+	}
+	e.inflight++
+	return true, 0
+}
+
+// Release ends an Acquire; a failed attempt is recorded as by Fail, which
+// returns the failure count (0 when not failed).
+func (l *Limiter) Release(key string, failed bool) int {
+	l.mu.Lock()
+	if e := l.m[key]; e != nil && e.inflight > 0 {
+		e.inflight--
+	}
+	l.mu.Unlock()
+	if failed {
+		return l.Fail(key)
+	}
+	return 0
+}
+
 // Fail records a failure and returns the failure count.
 func (l *Limiter) Fail(key string) int {
 	l.mu.Lock()
@@ -74,7 +114,7 @@ func (l *Limiter) Fail(key string) int {
 	}
 	if len(l.m) > 10000 {
 		for k, v := range l.m {
-			if now.Sub(v.last) > forgetAfter {
+			if v.inflight == 0 && now.Sub(v.last) > forgetAfter {
 				delete(l.m, k)
 			}
 		}
