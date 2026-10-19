@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"context"
+	"html/template"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -320,5 +321,17 @@ func TestPolicyDownloadAndUpload(t *testing.T) {
 	resp.Body.Close()
 	if resp.StatusCode != 200 || !strings.Contains(string(b), "Review changes") || !strings.Contains(string(b), "group:ops") {
 		t.Fatalf("upload: %d", resp.StatusCode)
+	}
+}
+
+func TestDatesCarryMachineReadableTime(t *testing.T) {
+	h := newHarness(t)
+	f := h.s.funcs()["date"].(func(any) template.HTML)
+	out := string(f(time.Date(2026, 10, 19, 12, 30, 0, 0, time.UTC)))
+	if !strings.Contains(out, `datetime="2026-10-19T12:30:00Z"`) || !strings.Contains(out, "data-local") {
+		t.Fatalf("%s", out)
+	}
+	if string(f(time.Time{})) != "—" {
+		t.Fatal("zero time")
 	}
 }

@@ -183,6 +183,41 @@
       el.textContent = ago(+el.dataset.ago, now);
     });
   }
+  // Server-rendered dates → the viewer's own time zone.
+  const fmt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+  function localTimes(root) {
+    (root || document).querySelectorAll("time[data-local]").forEach((el) => {
+      const d = new Date(el.getAttribute("datetime"));
+      if (!isNaN(d)) { el.textContent = fmt.format(d); el.title = d.toString(); }
+      el.removeAttribute("data-local");
+    });
+  }
+
+  // Sortable tables: <th data-sort> headers; cells may carry data-v.
+  document.addEventListener("click", (e) => {
+    const th = e.target.closest("th[data-sort]");
+    if (!th) return;
+    const table = th.closest("table");
+    const idx = Array.from(th.parentNode.children).indexOf(th);
+    const dir = th.dataset.dir === "asc" ? "desc" : "asc";
+    table.querySelectorAll("th[data-sort]").forEach((h) => { delete h.dataset.dir; h.removeAttribute("aria-sort"); });
+    th.dataset.dir = dir;
+    th.setAttribute("aria-sort", dir === "asc" ? "ascending" : "descending");
+    const val = (tr) => {
+      const td = tr.children[idx];
+      return td ? (td.dataset.v !== undefined ? td.dataset.v : td.textContent.trim().toLowerCase()) : "";
+    };
+    const tbody = table.tBodies[0];
+    const rows = Array.from(tbody.rows).filter((r) => r.children.length > 1);
+    const numeric = rows.every((r) => val(r) === "" || !isNaN(+val(r)));
+    rows.sort((a, b) => {
+      const x = val(a), y = val(b);
+      const c = numeric ? (+x || 0) - (+y || 0) : x.localeCompare(y, undefined, { numeric: true });
+      return dir === "asc" ? c : -c;
+    });
+    rows.forEach((r) => tbody.appendChild(r));
+  });
+
   function ago(t, now) {
     const s = Math.max(0, now - t);
     if (s < 45) return "just now";
@@ -284,6 +319,6 @@
     setTimeout(check, 2500);
   }
 
-  document.addEventListener("DOMContentLoaded", () => { connect(); tick(); autoDismiss(document); pollStatus(); });
-  document.addEventListener("htmx:afterSwap", (e) => { tick(); autoDismiss(e.target); });
+  document.addEventListener("DOMContentLoaded", () => { connect(); tick(); localTimes(); autoDismiss(document); pollStatus(); });
+  document.addEventListener("htmx:afterSwap", (e) => { tick(); localTimes(e.target); autoDismiss(e.target); });
 })();
