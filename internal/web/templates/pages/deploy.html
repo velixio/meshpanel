@@ -4,11 +4,11 @@
   <section class="card">
     <div class="hd"><h2>{{icon "phone"}} Phones, laptops, desktops</h2></div>
     <div class="bd stack">
-      <div class="row"><span class="badge accent">1</span> Install the Tailscale app.</div>
-      <div class="row"><span class="badge accent">2</span> Set the server to:</div>
+      <div class="row"><span class="badge accent">1</span><span>Install the Tailscale app.</span></div>
+      <div class="row"><span class="badge accent">2</span><span>Set the server to:</span></div>
       <div class="secret"><code>{{$d.Opts.Server}}</code><button class="btn ghost sm icon-only" data-copy="{{$d.Opts.Server}}" aria-label="Copy">{{icon "copy"}}</button></div>
       <p class="small muted">iOS: Settings → Tailscale → Alternate coordination server. Android: ⋮ → Change server. macOS/Windows: the menu-bar app's debug menu, or <code>tailscale login --login-server={{$d.Opts.Server}}</code>.</p>
-      <div class="row"><span class="badge accent">3</span> Tap <b>Log in</b>, sign in with your meshpanel account, and confirm.</div>
+      <div class="row" style="flex-wrap:nowrap;align-items:flex-start"><span class="badge accent">3</span><span>Tap <b>Log in</b>, sign in with your meshpanel account, and confirm.</span></div>
       <p class="small muted">If your role can approve your own devices, it joins right away; otherwise an approver gets a Telegram message.</p>
     </div>
   </section>

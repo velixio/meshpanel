@@ -62,6 +62,16 @@
     </form>
   </section>
 
+  {{if has .Caps "approve_devices"}}
+  <section class="card">
+    <div class="hd"><h2>Add a device by link</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/machines/register">{{template "csrf" .CSRF}}
+      <label class="field">Link or ID shown by the device<input class="input mono" name="auth_id" placeholder="…/register/hskey-authreq-…" required></label>
+      <label class="field">User<select class="input" name="user">{{range $d.Users}}<option>{{.Name}}</option>{{end}}</select></label>
+      <div><button class="btn">Register device</button></div>
+    </form>
+  </section>
+  {{end}}
   <section class="card" style="grid-column:1/-1">
     <div class="hd"><h2>{{icon "send"}} Webhooks</h2><span class="hint">Slack, Discord, or any HTTP endpoint</span></div>
     {{if $d.Webhooks}}
@@ -97,15 +107,5 @@
     </form>
   </section>
 
-  {{if has .Caps "approve_devices"}}
-  <section class="card">
-    <div class="hd"><h2>Add a device by link</h2></div>
-    <form class="bd stack" method="post" action="{{.Base}}/machines/register">{{template "csrf" .CSRF}}
-      <label class="field">Link or ID shown by the device<input class="input mono" name="auth_id" placeholder="…/register/hskey-authreq-…" required></label>
-      <label class="field">User<select class="input" name="user">{{range $d.Users}}<option>{{.Name}}</option>{{end}}</select></label>
-      <div><button class="btn">Register device</button></div>
-    </form>
-  </section>
-  {{end}}
 </div>
 {{end}}
