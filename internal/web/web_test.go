@@ -338,3 +338,92 @@ func TestTOTPSecretStoredSealed(t *testing.T) {
 		t.Fatalf("secret stored as %q", a.TOTPSecret)
 	}
 }
+
+// An attacker hammering one account from their own IP must not lock the
+// real owner out from theirs.
+func TestTargetedLockoutLimited(t *testing.T) {
+	h := newHarness(t)
+	_, secret := h.account("anna", "admin", "anna")
+	attacker := h.client()
+	for i := 0; i < 8; i++ {
+		attacker.postFrom("203.0.113.66", "/admin/login", "/admin/login", url.Values{"username": {"anna"}, "password": {"wrong password!"}})
+	}
+	_, body, _ := attacker.postFrom("203.0.113.66", "/admin/login", "/admin/login", url.Values{"username": {"anna"}, "password": {testPassword}})
+	if !strings.Contains(body, "Too many attempts") {
+		t.Fatal("attacker IP not throttled")
+	}
+	owner := h.client()
+	code, _, hdr := owner.postFrom("198.51.100.7", "/admin/login", "/admin/login", url.Values{"username": {"anna"}, "password": {testPassword}})
+	if code != http.StatusSeeOther || !strings.Contains(hdr.Get("Location"), "/login/2fa") {
+		t.Fatalf("owner locked out by someone else's failures: %d", code)
+	}
+	_ = secret
+}
+
+// postFrom is post() through the trusted local proxy with a client IP.
+func (c *client) postFrom(ip, csrfFrom, path string, form url.Values) (int, string, http.Header) {
+	c.h.t.Helper()
+	_, body, _ := c.get(csrfFrom)
+	if m := csrfRe.FindStringSubmatch(body); m != nil {
+		form.Set("_csrf", m[1])
+	}
+	req, _ := http.NewRequest("POST", c.h.srv.URL+path, strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("X-Forwarded-For", ip)
+	resp, err := c.c.Do(req)
+	if err != nil {
+		c.h.t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	b, _ := io.ReadAll(resp.Body)
+	return resp.StatusCode, string(b), resp.Header
+}
+
+func TestHSTSWhenSecure(t *testing.T) {
+	h := newHarness(t)
+	_, _, hdr := h.client().get("/admin/login")
+	if hdr.Get("Strict-Transport-Security") != "" {
+		t.Fatal("HSTS sent while cookie_secure is off (plain-HTTP trial)")
+	}
+	h.cfg.Server.CookieSecure = true
+	_, _, hdr = h.client().get("/admin/login")
+	if !strings.Contains(hdr.Get("Strict-Transport-Security"), "max-age=") {
+		t.Fatal("no HSTS with cookie_secure on")
+	}
+}
+
+func TestRequestBodyLimited(t *testing.T) {
+	h := newHarness(t)
+	big := strings.Repeat("a", 5<<20)
+	resp, err := http.Post(h.srv.URL+"/admin/login", "application/x-www-form-urlencoded", strings.NewReader("username="+big))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("5 MB body: %d", resp.StatusCode)
+	}
+}
+
+type downPoller struct{ fakePoller }
+
+func (downPoller) Healthy() bool    { return false }
+func (downPoller) LastError() error { return errors.New("cannot reach headscale socket /run/secret/path.sock") }
+
+func TestHeadscaleErrorDetailOnlyForAdmins(t *testing.T) {
+	h := newHarness(t)
+	h.s.Poller = &downPoller{}
+	_, ms := h.account("ravi", "member", "ravi")
+	_, as := h.account("anna", "admin", "anna")
+	m := h.client()
+	m.login("ravi", ms)
+	_, body, _ := m.get("/admin/")
+	if strings.Contains(body, "/run/secret/path.sock") || !strings.Contains(body, "not responding") {
+		t.Fatal("member sees internal error detail (or no banner)")
+	}
+	a := h.client()
+	a.login("anna", as)
+	if _, body, _ := a.get("/admin/"); !strings.Contains(body, "/run/secret/path.sock") {
+		t.Fatal("admin lost the error detail")
+	}
+}

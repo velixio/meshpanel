@@ -120,6 +120,9 @@ func (s *Server) clearSessionCookie(w http.ResponseWriter) {
 
 const preCSRFCookie = "mp_csrf"
 
+// maxBody bounds request bodies (forms, policies, logo uploads).
+const maxBody = 4 << 20
+
 // csrfToken returns the token forms must echo: the session's, or a
 // double-submit cookie for signed-out forms.
 func (s *Server) csrfToken(w http.ResponseWriter, r *http.Request) string {
@@ -237,6 +240,17 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		if !strings.HasPrefix(r.URL.Path, s.base+"/static/") {
 			h.Set("Cache-Control", "no-store")
+		}
+		if s.Cfg.Server.CookieSecure {
+			// cookie_secure means the panel is served over HTTPS.
+			h.Set("Strict-Transport-Security", "max-age=31536000")
+		}
+		if !safeMethod(r.Method) {
+			if r.ContentLength > maxBody {
+				http.Error(w, "request too large", http.StatusRequestEntityTooLarge)
+				return
+			}
+			r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 		}
 		next.ServeHTTP(w, r)
 	})
