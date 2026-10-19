@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-var checkLinkRe = regexp.MustCompile(`https?://[^\s"'<>]+/auth/hskey-authreq-[0-9a-f]{24}`)
+var checkLinkRe = regexp.MustCompile(`https?://[^\s"'<>]+/auth/hskey-authreq-[0-9A-Za-z_-]{24}`)
 
 // Size is a terminal size in character cells.
 type Size struct {

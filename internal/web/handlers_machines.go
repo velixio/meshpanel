@@ -308,7 +308,7 @@ func (s *Server) machineAction(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var authIDInText = regexp.MustCompile(`hskey-authreq-[0-9a-f]{24}`)
+var authIDInText = regexp.MustCompile(`hskey-authreq-[0-9A-Za-z_-]{24}`)
 
 // machineRegisterByID completes a registration from a pasted link or ID.
 func (s *Server) machineRegisterByID(w http.ResponseWriter, r *http.Request) {

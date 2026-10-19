@@ -187,3 +187,31 @@ func TestBlockedTarget(t *testing.T) {
 		}
 	}
 }
+
+// A webhook that keeps failing must not delay delivery to a healthy one.
+func TestBrokenHookDoesNotStallHealthyOne(t *testing.T) {
+	d, err := db.Open(filepath.Join(t.TempDir(), "t.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { d.Close() })
+	got := make(chan string, 4)
+	good := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { got <- r.Header.Get("X-Meshpanel-Event") }))
+	defer good.Close()
+	for i := 0; i < 8; i++ { // more broken hooks than workers
+		d.CreateWebhook(context.Background(), db.Webhook{Name: "bad", URL: "http://127.0.0.1:1/x", Format: "json", Secret: "s"})
+	}
+	d.CreateWebhook(context.Background(), db.Webhook{Name: "good", URL: good.URL, Format: "json", Secret: "s"})
+	disp := New(d)
+	disp.allowLoopback()
+	disp.backoff = []time.Duration{time.Hour, time.Hour, time.Hour} // a sleeping retry would hold a worker for an hour
+	disp.Handle(context.Background(), events.Event{Kind: events.NodeAdded, NodeName: "n"})
+	select {
+	case k := <-got:
+		if k != "node_added" {
+			t.Fatalf("event %q", k)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("healthy webhook starved by broken ones")
+	}
+}

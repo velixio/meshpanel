@@ -149,10 +149,13 @@ func TestCheckSupported(t *testing.T) {
 }
 
 func TestValidAuthID(t *testing.T) {
-	if !ValidAuthID("hskey-authreq-0123456789abcdef01234567") {
-		t.Fatal("valid rejected")
+	// hex (headscale main) and URL-safe base64 (0.29.x)
+	for _, ok := range []string{"hskey-authreq-0123456789abcdef01234567", "hskey-authreq-AbC_dEf-1234567890abcdXY"} {
+		if !ValidAuthID(ok) {
+			t.Fatalf("valid %q rejected", ok)
+		}
 	}
-	for _, s := range []string{"", "hskey-authreq-0123", "hskey-authreq-0123456789ABCDEF01234567", "hskey-authreq-0123456789abcdef01234567x", "../etc"} {
+	for _, s := range []string{"", "hskey-authreq-0123", "hskey-authreq-0123456789abcdef01234567x", "hskey-authreq-0123456789abcdef0123456/", "hskey-authreq-0123456789abcdef0123.567", "../etc"} {
 		if ValidAuthID(s) {
 			t.Fatalf("%q accepted", s)
 		}

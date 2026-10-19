@@ -264,7 +264,8 @@ func IsTested(v string) bool {
 	return m == nil || (m[1] == "0" && (m[2] == "30" || m[2] == "29"))
 }
 
-var authIDRe = regexp.MustCompile(`^hskey-authreq-[0-9a-f]{24}$`)
+var authIDRe = regexp.MustCompile(`^hskey-authreq-[0-9A-Za-z_-]{24}$`)
 
-// ValidAuthID checks the format of a registration/auth request id.
+// ValidAuthID checks the format of a registration/auth request id: 24 random
+// characters, hex on headscale main and URL-safe base64 on 0.29.x.
 func ValidAuthID(s string) bool { return authIDRe.MatchString(s) }

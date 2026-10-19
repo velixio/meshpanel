@@ -91,8 +91,9 @@ func Sign(secret string, body []byte) string {
 }
 
 type job struct {
-	hook *db.Webhook
-	ev   events.Event
+	hook    *db.Webhook
+	ev      events.Event
+	attempt int
 }
 
 // Dispatcher delivers events to configured webhooks with retries.
@@ -215,7 +216,7 @@ func (d *Dispatcher) spawn(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case j := <-d.queue:
-					d.deliver(ctx, j.hook, j.ev)
+					d.deliver(ctx, j)
 				}
 			}
 		}()
@@ -238,7 +239,7 @@ func (d *Dispatcher) Handle(ctx context.Context, ev events.Event) {
 			continue
 		}
 		select {
-		case d.queue <- job{h, ev}:
+		case d.queue <- job{hook: h, ev: ev}:
 		default:
 			slog.Warn("webhooks: queue full, dropping event", "hook", h.Name, "kind", ev.Kind)
 		}
@@ -250,21 +251,30 @@ func (d *Dispatcher) Send(ctx context.Context, h *db.Webhook, ev events.Event) e
 	return d.deliverOnce(ctx, h, ev)
 }
 
-func (d *Dispatcher) deliver(ctx context.Context, h *db.Webhook, ev events.Event) {
-	var err error
-	for attempt := 0; ; attempt++ {
-		if err = d.deliverOnce(ctx, h, ev); err == nil || attempt >= len(d.backoff) {
-			break
+// deliver makes one attempt. A failure is retried later by a timer, not by
+// sleeping here: a worker stuck waiting on one broken endpoint would hold up
+// delivery to every healthy one. Blocked addresses never succeed, so they
+// aren't retried at all.
+func (d *Dispatcher) deliver(ctx context.Context, j job) {
+	err := d.deliverOnce(ctx, j.hook, j.ev)
+	if err == nil {
+		return
+	}
+	if errors.Is(err, errBlocked) || j.attempt >= len(d.backoff) {
+		slog.Warn("webhook delivery failed", "hook", j.hook.Name, "err", err)
+		return
+	}
+	next := job{hook: j.hook, ev: j.ev, attempt: j.attempt + 1}
+	time.AfterFunc(d.backoff[j.attempt], func() {
+		if ctx.Err() != nil {
+			return
 		}
 		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(d.backoff[attempt]):
+		case d.queue <- next:
+		default:
+			slog.Warn("webhooks: queue full, dropping retry", "hook", j.hook.Name)
 		}
-	}
-	if err != nil {
-		slog.Warn("webhook delivery failed", "hook", h.Name, "err", err)
-	}
+	})
 }
 
 type statusError struct{ code int }
