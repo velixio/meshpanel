@@ -3,3 +3,4 @@ info
 .playwright-mcp/
 /bin/
 /dist/
+config.yaml
