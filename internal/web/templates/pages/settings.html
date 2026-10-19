@@ -43,6 +43,17 @@
     </div>
   </section>
 
+  <section class="card">
+    <div class="hd"><h2>{{icon "zap"}} Tailnet features</h2></div>
+    <div class="bd">
+      <dl class="kv">
+        <dt>Device info agent</dt><dd>{{if not $d.AgentOn}}<span class="badge">off</span> <span class="small muted">agent.enabled</span>{{else if $d.Agent.Running}}<span class="badge ok">running</span> <span class="small muted">{{$d.Agent.Peers}} devices · synced {{ago $d.Agent.LastSync}}</span>{{else}}<span class="badge warn">starting / retrying</span>{{end}}</dd>
+        {{if and $d.AgentOn $d.Agent.Error}}<dt>Agent error</dt><dd class="err-text small">{{$d.Agent.Error}}</dd>{{end}}
+        <dt>Browser SSH</dt><dd>{{if $d.SSHOn}}<span class="badge ok">on</span> <span class="small muted">{{$d.SSHActive}} open session{{if ne $d.SSHActive 1}}s{{end}}</span>{{else}}<span class="badge">off</span> <span class="small muted">web_ssh.enabled</span>{{end}}</dd>
+      </dl>
+    </div>
+  </section>
+
   {{if has .Caps "approve_devices"}}
   <section class="card">
     <div class="hd"><h2>Add a device by link</h2></div>

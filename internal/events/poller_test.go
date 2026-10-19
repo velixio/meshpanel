@@ -160,3 +160,15 @@ func TestPollerHealthTransitions(t *testing.T) {
 		t.Fatalf("got %v", got)
 	}
 }
+
+func TestDiffIgnoresWebSSHNodes(t *testing.T) {
+	d := NewDiffer()
+	d.Diff([]hs.Node{n("1", true)}, t0)
+	ssh := hs.Node{ID: "9", Name: "meshpanel-ssh-ravi", User: &hs.User{Name: "ravi"}, Online: true}
+	if evs := d.Diff([]hs.Node{n("1", true), ssh}, t0); len(evs) != 0 {
+		t.Fatalf("SSH session node raised %+v", evs)
+	}
+	if evs := d.Diff([]hs.Node{n("1", true)}, t0); len(evs) != 0 {
+		t.Fatalf("SSH session node removal raised %+v", evs)
+	}
+}

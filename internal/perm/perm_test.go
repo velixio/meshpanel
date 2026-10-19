@@ -28,6 +28,9 @@ func TestRolesMatrix(t *testing.T) {
 	if Effective("auditor", 0).Has(WriteMachines) || !Effective("auditor", 0).Has(ReadAudit) {
 		t.Fatal("auditor is read-only with audit")
 	}
+	if !Effective("member", 0).Has(WebSSH) || Effective("viewer", 0).Has(WebSSH) || Effective("auditor", 0).Has(WebSSH) {
+		t.Fatal("web_ssh: members (own devices) yes, read-only roles no")
+	}
 	if !Effective("viewer", ApproveDevices).Has(ApproveDevices) {
 		t.Fatal("extra caps apply")
 	}

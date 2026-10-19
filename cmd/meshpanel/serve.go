@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -22,6 +23,8 @@ import (
 	"github.com/meshpanel/meshpanel/internal/hsconfig"
 	"github.com/meshpanel/meshpanel/internal/notify"
 	"github.com/meshpanel/meshpanel/internal/registration"
+	"github.com/meshpanel/meshpanel/internal/tailnet"
+	"github.com/meshpanel/meshpanel/internal/tailnet/ts"
 	"github.com/meshpanel/meshpanel/internal/telegram"
 	"github.com/meshpanel/meshpanel/internal/web"
 )
@@ -143,8 +146,32 @@ func runServe(args []string) error {
 	} else {
 		slog.Info("telegram disabled (no telegram.token)")
 	}
+	tailnetDir := filepath.Join(filepath.Dir(cfg.DB.Path), "tailnet")
+	controlURL := cfg.Agent.ControlURL
+	if controlURL == "" {
+		controlURL = cfg.Headscale.HTTPURL
+	}
+	var hostCache *tailnet.HostCache
+	var agent *ts.Agent
 	if cfg.Agent.Enabled {
-		slog.Warn("agent.enabled is set, but the host-info agent is not included in this build")
+		dir := cfg.Agent.StateDir
+		if dir == "" {
+			dir = filepath.Join(tailnetDir, "agent")
+		}
+		hostCache = &tailnet.HostCache{}
+		agent = &ts.Agent{
+			HS: client, HSUser: cfg.Agent.HSUser, Hostname: cfg.Agent.Hostname, ControlURL: controlURL,
+			Dir: dir, Interval: cfg.Agent.Interval, Cache: hostCache, Debug: cfg.Log.Level == "debug",
+		}
+	}
+	var sshMgr *tailnet.Manager
+	if cfg.WebSSH.Enabled {
+		base := filepath.Join(tailnetDir, "ssh")
+		_ = os.RemoveAll(base) // leftovers from sessions cut off by a restart
+		sshMgr = &tailnet.Manager{
+			Nodes:    &ts.TSFactory{HS: client, ControlURL: controlURL, BaseDir: base, Debug: cfg.Log.Level == "debug"},
+			MaxTotal: cfg.WebSSH.MaxSessions, MaxPerUser: cfg.WebSSH.MaxPerUser,
+		}
 	}
 
 	deps := web.Deps{
@@ -155,6 +182,12 @@ func runServe(args []string) error {
 	if bot != nil {
 		deps.TG = bot
 	}
+	if hostCache != nil {
+		deps.Agent = hostCache
+	}
+	if sshMgr != nil {
+		deps.SSH = sshMgr
+	}
 	srv, err := web.New(deps)
 	if err != nil {
 		return err
@@ -163,6 +196,9 @@ func runServe(args []string) error {
 	var wg sync.WaitGroup
 	run := func(f func()) { wg.Add(1); go func() { defer wg.Done(); f() }() }
 	run(func() { poller.Run(ctx) })
+	if agent != nil {
+		run(func() { agent.Run(ctx) })
+	}
 	run(func() { reg.Run(ctx) })
 	if bot != nil {
 		run(func() { engine.Run(ctx, bus, bot) })

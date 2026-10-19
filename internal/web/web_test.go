@@ -105,8 +105,8 @@ func newHarness(t *testing.T) *harness {
 	bus := events.NewBus()
 	f := &fakeHS{}
 	poller := &fakePoller{nodes: []hs.Node{
-		{ID: "1", GivenName: "ravi-phone", User: &hs.User{ID: "1", Name: "ravi"}, Online: true},
-		{ID: "2", GivenName: "anna-laptop", User: &hs.User{ID: "2", Name: "anna"}},
+		{ID: "1", GivenName: "ravi-phone", User: &hs.User{ID: "1", Name: "ravi"}, Online: true, IPAddresses: []string{"100.64.0.1"}, NodeKey: "nodekey:01"},
+		{ID: "2", GivenName: "anna-laptop", User: &hs.User{ID: "2", Name: "anna"}, IPAddresses: []string{"100.64.0.2"}, NodeKey: "nodekey:02"},
 	}}
 	s, err := New(Deps{
 		Cfg: cfg, DB: d, HS: f, Poller: poller, Bus: bus, Reg: registration.New(d, f, bus),

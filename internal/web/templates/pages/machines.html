@@ -39,7 +39,7 @@
     <tbody>
     {{range $d.Rows}}
       <tr class="clickable" data-href="{{$p.Base}}/machines/{{.ID}}" data-search="{{.Search}}" data-state="{{.State}}">
-        <td><div class="name"><span class="faint">{{template "nodeIcon" .Node}}</span><div class="ellipsis"><a href="{{$p.Base}}/machines/{{.ID}}"><b>{{.DisplayName}}</b></a><div class="sub">{{if .IsTagged}}tagged device{{else}}{{.UserName}}{{if .Owner}} · {{.Owner}}{{end}}{{end}}</div></div></div></td>
+        <td><div class="name"><span class="faint">{{template "nodeIcon" .Node}}</span><div class="ellipsis"><a href="{{$p.Base}}/machines/{{.ID}}"><b>{{.DisplayName}}</b></a><div class="sub">{{if .IsWebSSH}}browser SSH session · {{.UserName}}{{else if .IsTagged}}tagged device{{else}}{{.UserName}}{{if .Owner}} · {{.Owner}}{{end}}{{end}}{{if .OS}} · {{.OS}}{{end}}</div></div></div></td>
         <td class="hide-sm mono small">{{ip .Node}}</td>
         <td class="hide-sm"><div class="row">{{template "tags" .Tags}}{{template "routeBadges" .Node}}</div></td>
         <td class="nowrap">{{template "statusText" .Node}}</td>

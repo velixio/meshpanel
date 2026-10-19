@@ -1,4 +1,4 @@
-package tailnet
+package ts
 
 import (
 	"context"
@@ -15,32 +15,14 @@ import (
 	"tailscale.com/ipn/ipnstate"
 	"tailscale.com/tailcfg"
 	"tailscale.com/tsnet"
+
+	"github.com/meshpanel/meshpanel/internal/tailnet"
 )
-
-// HostInfo is what the agent learns about a machine from Tailscale.
-type HostInfo struct {
-	OS        string
-	OSVersion string
-	Device    string
-	Tailscale string
-	Hostname  string
-	Endpoints []string
-	HomeDERP  int
-	Updated   time.Time
-}
-
-// AgentState is the agent's health for the Settings page.
-type AgentState struct {
-	Running  bool
-	Error    string
-	LastSync time.Time
-	Peers    int
-}
 
 var osNames = map[string]string{"linux": "Linux", "windows": "Windows", "macOS": "macOS", "darwin": "macOS", "iOS": "iOS", "android": "Android", "freebsd": "FreeBSD", "openbsd": "OpenBSD", "js": "Browser"}
 
-func hostInfoFrom(h *tailcfg.Hostinfo, eps []netip.AddrPort, derp int, now time.Time) HostInfo {
-	hi := HostInfo{OS: h.OS, Device: h.DeviceModel, Hostname: h.Hostname, HomeDERP: derp, Updated: now}
+func hostInfoFrom(h *tailcfg.Hostinfo, eps []netip.AddrPort, derp int, now time.Time) tailnet.HostInfo {
+	hi := tailnet.HostInfo{OS: h.OS, Device: h.DeviceModel, Hostname: h.Hostname, HomeDERP: derp, Updated: now}
 	if n, ok := osNames[h.OS]; ok {
 		hi.OS = n
 	}
@@ -71,40 +53,7 @@ type Agent struct {
 	Interval   time.Duration
 	Debug      bool
 
-	mu    sync.RWMutex
-	info  map[string]HostInfo
-	state AgentState
-}
-
-func (a *Agent) Info(nodeKey string) (HostInfo, bool) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	hi, ok := a.info[nodeKey]
-	return hi, ok
-}
-
-func (a *Agent) State() AgentState {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.state
-}
-
-func (a *Agent) store(info map[string]HostInfo, at time.Time, err error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if err != nil {
-		a.state.Error = err.Error()
-		return
-	}
-	a.info = info
-	a.state = AgentState{Running: true, LastSync: at, Peers: len(info)}
-}
-
-func (a *Agent) fail(err error) {
-	a.mu.Lock()
-	a.state.Running = false
-	a.state.Error = err.Error()
-	a.mu.Unlock()
+	Cache *tailnet.HostCache
 }
 
 // Run starts the node and refreshes host info until ctx ends. Failures are
@@ -119,7 +68,7 @@ func (a *Agent) Run(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		a.fail(err)
+		a.Cache.Fail(err)
 		slog.Warn("tailnet agent stopped; retrying", "err", err, "in", backoff)
 		select {
 		case <-ctx.Done():
@@ -162,7 +111,7 @@ func (a *Agent) runOnce(ctx context.Context) error {
 	for {
 		if err := a.refresh(ctx, lc); err != nil {
 			slog.Debug("tailnet agent refresh", "err", err)
-			a.store(nil, time.Time{}, err)
+			a.Cache.Store(nil, time.Time{}, err)
 		}
 		select {
 		case <-ctx.Done():
@@ -206,7 +155,7 @@ func (a *Agent) refresh(ctx context.Context, lc tsLocal) error {
 		return err
 	}
 	now := time.Now()
-	out := map[string]HostInfo{}
+	out := map[string]tailnet.HostInfo{}
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	sema := make(chan struct{}, 8)
@@ -229,6 +178,6 @@ func (a *Agent) refresh(ctx context.Context, lc tsLocal) error {
 		}(p)
 	}
 	wg.Wait()
-	a.store(out, now, nil)
+	a.Cache.Store(out, now, nil)
 	return nil
 }

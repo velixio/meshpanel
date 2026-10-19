@@ -33,6 +33,9 @@ func TestLoadDefaults(t *testing.T) {
 	if c.Headscale.RestartCommand != "sudo systemctl restart headscale" || c.Headscale.ReloadCommand != "sudo systemctl reload headscale" {
 		t.Fatalf("commands: %+v", c.Headscale)
 	}
+	if c.Agent.Enabled || c.Agent.HSUser != "meshpanel" || c.WebSSH.Enabled || c.WebSSH.MaxSessions != 10 || c.WebSSH.MaxPerUser != 3 {
+		t.Fatalf("phase 7 defaults: %+v %+v", c.Agent, c.WebSSH)
+	}
 	if c.DB.Path != "/var/lib/meshpanel/meshpanel.db" || !c.Server.CookieSecure {
 		t.Fatalf("db/cookie defaults: %+v %+v", c.DB, c.Server)
 	}

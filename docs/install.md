@@ -69,6 +69,23 @@ Before every change meshpanel saves a backup next to the file
 `headscale configtest` when the binary is available, and restores the backup
 if headscale doesn't come back healthy within 45 seconds.
 
+## 3b. Optional: device info and browser SSH
+
+Set `agent.enabled: true` and/or `web_ssh.enabled: true`.
+
+- Both connect to headscale at `headscale.http_url`, its local listener. No proxy change is needed.
+- State is kept in `/var/lib/meshpanel/tailnet/`.
+- The agent registers once as headscale user `meshpanel` and keeps that identity across restarts.
+- With a restrictive policy, allow the agent to see devices:
+
+```json
+{"action": "accept", "src": ["meshpanel@"], "dst": ["*:*"], "proto": "icmp"}
+```
+
+- **Browser SSH sessions** run as the signed-in person's headscale user. Each one creates a single-use ephemeral key and deletes its node when it closes.
+- **Tailscale SSH:** for it to accept them, the policy needs an `ssh` rule for that person (for example `"src": ["ravi@"], "dst": ["tag:server"], "users": ["root"]`).
+- **Regular sshd:** if the machine runs a normal SSH server on port 22 instead, the terminal prompts for the password.
+
 ## 4. Proxy and start
 
 Route `/register/*`, `/auth/*` and `/admin/*` to `127.0.0.1:8030`; see

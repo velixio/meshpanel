@@ -21,6 +21,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/hs"
 	"github.com/meshpanel/meshpanel/internal/hsconfig"
 	"github.com/meshpanel/meshpanel/internal/registration"
+	"github.com/meshpanel/meshpanel/internal/tailnet"
 )
 
 //go:embed templates static
@@ -81,6 +82,20 @@ type Deps struct {
 	Applier   *hsconfig.Applier // nil when config editing is unavailable
 	Version   string
 	HSVersion func() string
+	Agent     HostInfoSource // nil unless agent.enabled
+	SSH       SSHOpener      // nil unless web_ssh.enabled
+}
+
+// HostInfoSource is the tailnet agent's cache.
+type HostInfoSource interface {
+	Info(nodeKey string) (tailnet.HostInfo, bool)
+	State() tailnet.AgentState
+}
+
+// SSHOpener runs browser SSH sessions.
+type SSHOpener interface {
+	Open(ctx context.Context, account int64, hsUser, target, sshUser string, t tailnet.Term, size tailnet.Size) error
+	Active() int
 }
 
 type Server struct {
@@ -165,6 +180,8 @@ func (s *Server) Handler() http.Handler {
 	page("GET "+b+"/machines", s.machines)
 	page("GET "+b+"/machines/{id}", s.machine)
 	page("POST "+b+"/machines/{id}/{action}", s.machineAction)
+	page("GET "+b+"/machines/{id}/ssh", s.sshPage)
+	page("GET "+b+"/machines/{id}/ssh/ws", s.sshWS)
 	page("POST "+b+"/machines/register", s.machineRegisterByID)
 
 	page("GET "+b+"/users", s.users)

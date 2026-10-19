@@ -1,4 +1,4 @@
-package tailnet
+package ts
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"tailscale.com/tsnet"
 
 	"github.com/meshpanel/meshpanel/internal/hs"
+	"github.com/meshpanel/meshpanel/internal/tailnet"
 )
 
 // HS is the headscale surface needed to register and clean up nodes.
@@ -86,7 +87,7 @@ type tsNode struct {
 	hs      HS
 }
 
-func (f *TSFactory) Start(ctx context.Context, hsUser string) (Node, error) {
+func (f *TSFactory) Start(ctx context.Context, hsUser string) (tailnet.Node, error) {
 	key, err := authKey(ctx, f.HS, hsUser, true, false)
 	if err != nil {
 		return nil, err
@@ -99,7 +100,7 @@ func (f *TSFactory) Start(ctx context.Context, hsUser string) (Node, error) {
 		return nil, err
 	}
 	s := &tsnet.Server{
-		Dir: dir, Store: new(mem.Store), Hostname: sshHostname(hsUser), ControlURL: f.ControlURL,
+		Dir: dir, Store: new(mem.Store), Hostname: tailnet.SSHHostname(hsUser), ControlURL: f.ControlURL,
 		AuthKey: key, Ephemeral: true, Logf: quietLogf, UserLogf: quietLogf,
 	}
 	if f.Debug {
@@ -143,4 +144,3 @@ func stateExists(dir string) bool {
 	_, err := os.Stat(filepath.Join(dir, "tailscaled.state"))
 	return err == nil
 }
-

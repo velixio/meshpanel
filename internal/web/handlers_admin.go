@@ -15,6 +15,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/db"
 	"github.com/meshpanel/meshpanel/internal/hs"
 	"github.com/meshpanel/meshpanel/internal/perm"
+	"github.com/meshpanel/meshpanel/internal/tailnet"
 )
 
 // ---------- audit ----------
@@ -107,6 +108,10 @@ type settingsData struct {
 	Brand          Brand
 	Users          []hs.User
 	Uptime         string
+	AgentOn        bool
+	Agent          tailnet.AgentState
+	SSHOn          bool
+	SSHActive      int
 }
 
 func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
@@ -121,6 +126,12 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.Poller.LastError(); err != nil {
 		d.HSError = err.Error()
+	}
+	if s.Agent != nil {
+		d.AgentOn, d.Agent = true, s.Agent.State()
+	}
+	if s.SSH != nil {
+		d.SSHOn, d.SSHActive = true, s.SSH.Active()
 	}
 	if s.HSVersion != nil {
 		d.HSVersion = s.HSVersion()
