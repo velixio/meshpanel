@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -57,6 +58,7 @@ func setup(t *testing.T, format string, kinds ...string) (*Dispatcher, *recv, *d
 		t.Fatal(err)
 	}
 	disp := New(d)
+	disp.allowLoopback() // test receivers listen on 127.0.0.1
 	disp.backoff = []time.Duration{10 * time.Millisecond, 10 * time.Millisecond, 10 * time.Millisecond}
 	return disp, rc, d
 }
@@ -132,4 +134,35 @@ func TestRetryOn500AndRecordResult(t *testing.T) {
 		hs, _ := d.ListWebhooks(context.Background())
 		return hs[0].LastStatus == 200 && hs[0].LastError == ""
 	})
+}
+
+func TestBlocksInternalTargets(t *testing.T) {
+	d, _ := db.Open(filepath.Join(t.TempDir(), "t.db"))
+	defer d.Close()
+	hit := atomic.Int32{}
+	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { hit.Add(1) }))
+	defer srv.Close()
+	disp := New(d)
+	for _, u := range []string{srv.URL, "http://169.254.169.254/latest/meta-data", "http://[::1]:9/", "http://0.0.0.0:9/"} {
+		err := disp.Send(context.Background(), &db.Webhook{URL: u, Format: "json", Secret: "x"}, events.Event{Kind: events.NodeAdded})
+		if err == nil || !strings.Contains(err.Error(), "not allowed") {
+			t.Errorf("%s: err = %v", u, err)
+		}
+	}
+	if hit.Load() != 0 {
+		t.Fatal("request reached a loopback address")
+	}
+}
+
+func TestNoRedirects(t *testing.T) {
+	disp, _, d := setup(t, "json")
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://169.254.169.254/", http.StatusFound)
+	}))
+	defer target.Close()
+	err := disp.Send(context.Background(), &db.Webhook{URL: target.URL, Format: "json", Secret: "x"}, events.Event{Kind: events.NodeAdded})
+	if err == nil {
+		t.Fatal("redirect treated as success")
+	}
+	_ = d
 }
