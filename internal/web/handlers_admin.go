@@ -4,8 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,9 +15,11 @@ import (
 
 	"github.com/meshpanel/meshpanel/internal/auth"
 	"github.com/meshpanel/meshpanel/internal/db"
+	"github.com/meshpanel/meshpanel/internal/events"
 	"github.com/meshpanel/meshpanel/internal/hs"
 	"github.com/meshpanel/meshpanel/internal/perm"
 	"github.com/meshpanel/meshpanel/internal/tailnet"
+	"github.com/meshpanel/meshpanel/internal/webhook"
 )
 
 // ---------- audit ----------
@@ -112,6 +116,8 @@ type settingsData struct {
 	Agent          tailnet.AgentState
 	SSHOn          bool
 	SSHActive      int
+	Webhooks       []*db.Webhook
+	HookKinds      []events.Kind
 }
 
 func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
@@ -130,6 +136,8 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 	if s.Agent != nil {
 		d.AgentOn, d.Agent = true, s.Agent.State()
 	}
+	d.Webhooks, _ = s.DB.ListWebhooks(ctx)
+	d.HookKinds = webhook.Kinds
 	if s.SSH != nil {
 		d.SSHOn, d.SSHActive = true, s.SSH.Active()
 	}
@@ -202,6 +210,60 @@ func (s *Server) settingsPost(w http.ResponseWriter, r *http.Request) {
 		}
 		s.audit(r, "settings.brand", name, nil, accent)
 		s.ok(w, r, here, "Branding saved.")
+	case "webhook_add":
+		r.ParseForm()
+		u, err := url.Parse(strings.TrimSpace(r.PostFormValue("url")))
+		if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
+			s.failed(w, r, here, errors.New("the webhook URL must be an http:// or https:// address"))
+			return
+		}
+		format := r.PostFormValue("format")
+		if format != "slack" && format != "discord" {
+			format = "json"
+		}
+		valid := map[string]bool{}
+		for _, k := range webhook.Kinds {
+			valid[string(k)] = true
+		}
+		var kinds []string
+		for _, k := range r.PostForm["event"] {
+			if valid[k] {
+				kinds = append(kinds, k)
+			}
+		}
+		name := strings.TrimSpace(r.PostFormValue("name"))
+		if name == "" {
+			name = u.Host
+		}
+		if _, err := s.DB.CreateWebhook(ctx, db.Webhook{Name: name, URL: u.String(), Format: format, Events: kinds, Secret: auth.RandomToken(24)}); err != nil {
+			s.failed(w, r, here, err)
+			return
+		}
+		s.audit(r, "webhook.create", name, nil, map[string]any{"host": u.Host, "format": format, "events": kinds})
+		s.ok(w, r, here, "Webhook added.")
+	case "webhook_delete", "webhook_test":
+		hid, _ := strconv.ParseInt(r.PostFormValue("id"), 10, 64)
+		hook, err := s.DB.GetWebhook(ctx, hid)
+		if err != nil {
+			s.failed(w, r, here, errors.New("webhook not found"))
+			return
+		}
+		if r.PathValue("section") == "webhook_delete" {
+			_ = s.DB.DeleteWebhook(ctx, hid)
+			s.audit(r, "webhook.delete", hook.Name, nil, nil)
+			s.ok(w, r, here, "Webhook removed.")
+			return
+		}
+		if s.Webhooks == nil {
+			s.failed(w, r, here, errors.New("webhooks are not running"))
+			return
+		}
+		err = s.Webhooks.Send(ctx, hook, events.Event{Kind: events.NodeAdded, NodeName: "test-device", HSUser: who(r).Account.HSUser, Actor: who(r).Account.Username, Text: "test"})
+		if err != nil {
+			s.failed(w, r, here, fmt.Errorf("test delivery failed: %w", err))
+			return
+		}
+		s.ok(w, r, here, "Test event delivered.")
 	case "telegram":
 		raw := strings.TrimSpace(r.PostFormValue("group_chat"))
 		var id int64

@@ -54,6 +54,41 @@
     </div>
   </section>
 
+  <section class="card" style="grid-column:1/-1">
+    <div class="hd"><h2>{{icon "send"}} Webhooks</h2><span class="hint">Slack, Discord, or any HTTP endpoint</span></div>
+    {{if $d.Webhooks}}
+    <div class="table-wrap"><table class="t">
+      <thead><tr><th>Name</th><th class="hide-sm">Destination</th><th>Events</th><th class="hide-sm">Last delivery</th><th></th></tr></thead>
+      <tbody>
+      {{range $d.Webhooks}}
+        <tr>
+          <td><b>{{.Name}}</b> <span class="badge">{{.Format}}</span></td>
+          <td class="hide-sm mono small ellipsis" style="max-width:260px">{{.URL}}</td>
+          <td class="small">{{if .Events}}{{join .Events ", "}}{{else}}all events{{end}}</td>
+          <td class="hide-sm small">{{if .LastAt.IsZero}}<span class="faint">never</span>{{else if .LastError}}<span class="badge danger" title="{{.LastError}}">failed</span> {{ago .LastAt}}{{else}}<span class="badge ok">{{.LastStatus}}</span> {{ago .LastAt}}{{end}}</td>
+          <td class="actions">
+            {{if eq .Format "json"}}<details data-menu class="req" style="padding:0;border:0;display:inline-block"><summary class="btn ghost sm">Secret</summary><div class="menu" style="padding:10px;min-width:320px"><p class="small muted">Verify <code>X-Meshpanel-Signature</code> = <code>sha256=</code>HMAC-SHA256(secret, body).</p><div class="secret mt"><code>{{.Secret}}</code><button type="button" class="btn ghost sm icon-only" data-copy="{{.Secret}}" aria-label="Copy">{{icon "copy"}}</button></div></div></details>{{end}}
+            <form method="post" action="{{$.Base}}/settings/webhook_test" style="display:inline">{{template "csrf" $.CSRF}}<input type="hidden" name="id" value="{{.ID}}"><button class="btn ghost sm">Send test</button></form>
+            <form method="post" action="{{$.Base}}/settings/webhook_delete" style="display:inline" hx-confirm="Remove webhook {{.Name}}?">{{template "csrf" $.CSRF}}<input type="hidden" name="id" value="{{.ID}}"><button class="btn ghost sm icon-only" aria-label="Remove">{{icon "trash"}}</button></form>
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table></div>
+    {{end}}
+    <form class="bd stack" method="post" action="{{.Base}}/settings/webhook_add" {{if $d.Webhooks}}style="border-top:1px var(--border-style) var(--border)"{{end}}>{{template "csrf" .CSRF}}
+      <div class="form-grid">
+        <label class="field">Name<input class="input" name="name" placeholder="ops channel"></label>
+        <label class="field">Format<select class="input" name="format"><option value="json">JSON (signed)</option><option value="slack">Slack incoming webhook</option><option value="discord">Discord webhook</option></select></label>
+        <label class="field full">URL<input class="input mono" name="url" type="url" placeholder="https://hooks.slack.com/services/…" required></label>
+      </div>
+      <details><summary class="small muted" style="cursor:pointer">Events (all if none picked)</summary>
+        <div class="grid g3 mt">{{range $d.HookKinds}}<label class="check small"><input type="checkbox" name="event" value="{{.}}"><span class="mono">{{.}}</span></label>{{end}}</div>
+      </details>
+      <div><button class="btn">{{icon "plus"}}Add webhook</button></div>
+    </form>
+  </section>
+
   {{if has .Caps "approve_devices"}}
   <section class="card">
     <div class="hd"><h2>Add a device by link</h2></div>

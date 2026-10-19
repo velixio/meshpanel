@@ -15,6 +15,7 @@ import (
 
 	"github.com/meshpanel/meshpanel/internal/auth"
 	"github.com/meshpanel/meshpanel/internal/db"
+	"github.com/meshpanel/meshpanel/internal/events"
 	"github.com/meshpanel/meshpanel/internal/hs"
 	"github.com/meshpanel/meshpanel/internal/perm"
 )
@@ -333,5 +334,41 @@ func TestDatesCarryMachineReadableTime(t *testing.T) {
 	}
 	if string(f(time.Time{})) != "—" {
 		t.Fatal("zero time")
+	}
+}
+
+type fakeHooks struct{ sent int }
+
+func (f *fakeHooks) Send(context.Context, *db.Webhook, events.Event) error { f.sent++; return nil }
+
+func TestWebhookSettings(t *testing.T) {
+	h := newHarness(t)
+	fh := &fakeHooks{}
+	h.s.Webhooks = fh
+	_, as := h.account("anna", "admin", "anna")
+	_, ms := h.account("ravi", "member", "ravi")
+	a := h.client()
+	a.login("anna", as)
+	code, _, _ := a.post("/admin/settings", "/admin/settings/webhook_add", url.Values{"name": {"ops"}, "url": {"https://hooks.slack.com/services/T/B/x"}, "format": {"slack"}, "event": {"node_added", "security"}})
+	hooks, _ := h.d.ListWebhooks(context.Background())
+	if code != http.StatusSeeOther || len(hooks) != 1 || hooks[0].Format != "slack" || len(hooks[0].Events) != 2 || len(hooks[0].Secret) < 20 {
+		t.Fatalf("add: %d %+v", code, hooks)
+	}
+	a.post("/admin/settings", "/admin/settings/webhook_add", url.Values{"name": {"bad"}, "url": {"file:///etc/passwd"}, "format": {"json"}})
+	if hooks, _ := h.d.ListWebhooks(context.Background()); len(hooks) != 1 {
+		t.Fatal("non-HTTP webhook URL accepted")
+	}
+	a.post("/admin/settings", "/admin/settings/webhook_test", url.Values{"id": {strconv.FormatInt(hooks[0].ID, 10)}})
+	if fh.sent != 1 {
+		t.Fatal("test delivery not sent")
+	}
+	m := h.client()
+	m.login("ravi", ms)
+	if code, _, _ := m.post("/admin/", "/admin/settings/webhook_add", url.Values{"name": {"x"}, "url": {"https://evil.example"}}); code != http.StatusForbidden {
+		t.Fatalf("member added a webhook: %d", code)
+	}
+	a.post("/admin/settings", "/admin/settings/webhook_delete", url.Values{"id": {strconv.FormatInt(hooks[0].ID, 10)}})
+	if hooks, _ := h.d.ListWebhooks(context.Background()); len(hooks) != 0 {
+		t.Fatal("not deleted")
 	}
 }
