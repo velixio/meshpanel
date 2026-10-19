@@ -9,11 +9,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
+	"net/netip"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/meshpanel/meshpanel/internal/db"
@@ -101,9 +105,46 @@ type Dispatcher struct {
 }
 
 func New(d *db.DB) *Dispatcher {
-	return &Dispatcher{
-		db: d, client: &http.Client{Timeout: 10 * time.Second}, queue: make(chan job, 256),
+	disp := &Dispatcher{
+		db: d, queue: make(chan job, 256),
 		backoff: []time.Duration{2 * time.Second, 10 * time.Second, 30 * time.Second},
+	}
+	disp.client = newClient(blockedTarget)
+	return disp
+}
+
+// allowLoopback is for tests whose receivers listen on 127.0.0.1.
+func (d *Dispatcher) allowLoopback() {
+	d.client = newClient(func(ip netip.Addr) bool { return !ip.IsLoopback() && blockedTarget(ip) })
+}
+
+// blockedTarget refuses addresses a webhook must never reach: the panel's
+// own host, link-local (cloud metadata at 169.254.169.254), unspecified and
+// multicast. Private LAN ranges stay allowed (internal chat servers).
+func blockedTarget(ip netip.Addr) bool {
+	ip = ip.Unmap()
+	return ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() || ip.IsMulticast()
+}
+
+var errBlocked = errors.New("this address is not allowed for webhooks (loopback, link-local and similar are blocked)")
+
+// newClient checks the address actually dialed, so DNS tricks can't sneak
+// past a check made on the hostname. Redirects are not followed.
+func newClient(blocked func(netip.Addr) bool) *http.Client {
+	dialer := &net.Dialer{
+		Timeout: 5 * time.Second,
+		Control: func(_, address string, _ syscall.RawConn) error {
+			ap, err := netip.ParseAddrPort(address)
+			if err != nil || blocked(ap.Addr()) {
+				return errBlocked
+			}
+			return nil
+		},
+	}
+	tr := &http.Transport{DialContext: dialer.DialContext, TLSHandshakeTimeout: 5 * time.Second, MaxIdleConns: 4, IdleConnTimeout: time.Minute}
+	return &http.Client{
+		Timeout: 10 * time.Second, Transport: tr,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 }
 
@@ -189,6 +230,12 @@ func (d *Dispatcher) deliverOnce(ctx context.Context, h *db.Webhook, ev events.E
 	req.Header.Set("X-Meshpanel-Event", string(ev.Kind))
 	req.Header.Set("X-Meshpanel-Signature", Sign(h.Secret, body))
 	resp, err := d.client.Do(req)
+	if err != nil && errors.Is(err, errBlocked) {
+		err = errBlocked
+	} else if err != nil {
+		// Don't hand back dial details (they'd make a port scanner).
+		err = errors.New("could not connect to the webhook URL")
+	}
 	status := 0
 	if err == nil {
 		io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
