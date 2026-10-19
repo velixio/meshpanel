@@ -2,7 +2,6 @@ package hs
 
 import (
 	"net/netip"
-	"strings"
 	"time"
 )
 
@@ -21,22 +20,23 @@ type User struct {
 }
 
 type Node struct {
-	ID              string     `json:"id"`
-	MachineKey      string     `json:"machineKey"`
-	NodeKey         string     `json:"nodeKey"`
-	IPAddresses     []string   `json:"ipAddresses"`
-	Name            string     `json:"name"`
-	User            *User      `json:"user"`
-	LastSeen        *time.Time `json:"lastSeen"`
-	Expiry          *time.Time `json:"expiry"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	RegisterMethod  string     `json:"registerMethod"`
-	GivenName       string     `json:"givenName"`
-	Online          bool       `json:"online"`
-	ApprovedRoutes  []string   `json:"approvedRoutes"`
-	AvailableRoutes []string   `json:"availableRoutes"`
-	SubnetRoutes    []string   `json:"subnetRoutes"`
-	Tags            []string   `json:"tags"`
+	ID              string      `json:"id"`
+	MachineKey      string      `json:"machineKey"`
+	NodeKey         string      `json:"nodeKey"`
+	IPAddresses     []string    `json:"ipAddresses"`
+	Name            string      `json:"name"`
+	User            *User       `json:"user"`
+	LastSeen        *time.Time  `json:"lastSeen"`
+	Expiry          *time.Time  `json:"expiry"`
+	CreatedAt       time.Time   `json:"createdAt"`
+	RegisterMethod  string      `json:"registerMethod"`
+	GivenName       string      `json:"givenName"`
+	Online          bool        `json:"online"`
+	ApprovedRoutes  []string    `json:"approvedRoutes"`
+	AvailableRoutes []string    `json:"availableRoutes"`
+	SubnetRoutes    []string    `json:"subnetRoutes"`
+	Tags            []string    `json:"tags"`
+	PreAuthKey      *NodeKeyRef `json:"preAuthKey"`
 }
 
 func (n Node) DisplayName() string {
@@ -145,5 +145,7 @@ var nowFunc = time.Now
 // browser SSH terminal creates.
 const WebSSHPrefix = "meshpanel-ssh"
 
-// IsWebSSH reports whether the node is a meshpanel browser-SSH session.
-func (n Node) IsWebSSH() bool { return strings.HasPrefix(n.Name, WebSSHPrefix) }
+// NodeKeyRef identifies the pre-auth key a node registered with.
+type NodeKeyRef struct {
+	ID string `json:"id"`
+}

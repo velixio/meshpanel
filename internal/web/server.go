@@ -84,6 +84,9 @@ type Deps struct {
 	HSVersion func() string
 	Agent     HostInfoSource // nil unless agent.enabled
 	SSH       SSHOpener      // nil unless web_ssh.enabled
+	// SessionNodes recognises meshpanel's own browser-SSH nodes (by the
+	// pre-auth key it minted, not by name). nil when SSH is off.
+	SessionNodes interface{ Owns(hs.Node) bool }
 }
 
 // HostInfoSource is the tailnet agent's cache.

@@ -161,14 +161,20 @@ func TestPollerHealthTransitions(t *testing.T) {
 	}
 }
 
-func TestDiffIgnoresWebSSHNodes(t *testing.T) {
+func TestDiffIgnoresOwnedNodesOnly(t *testing.T) {
 	d := NewDiffer()
+	d.Ignore = func(n hs.Node) bool { return n.PreAuthKey != nil && n.PreAuthKey.ID == "77" }
 	d.Diff([]hs.Node{n("1", true)}, t0)
-	ssh := hs.Node{ID: "9", Name: "meshpanel-ssh-ravi", User: &hs.User{Name: "ravi"}, Online: true}
-	if evs := d.Diff([]hs.Node{n("1", true), ssh}, t0); len(evs) != 0 {
-		t.Fatalf("SSH session node raised %+v", evs)
+	owned := hs.Node{ID: "9", Name: "meshpanel-ssh-ravi", User: &hs.User{Name: "ravi"}, Online: true, PreAuthKey: &hs.NodeKeyRef{ID: "77"}}
+	if evs := d.Diff([]hs.Node{n("1", true), owned}, t0); len(evs) != 0 {
+		t.Fatalf("meshpanel's own session node raised %+v", evs)
 	}
 	if evs := d.Diff([]hs.Node{n("1", true)}, t0); len(evs) != 0 {
-		t.Fatalf("SSH session node removal raised %+v", evs)
+		t.Fatalf("session node removal raised %+v", evs)
+	}
+	// A device that merely names itself like a session node still alerts.
+	spoof := hs.Node{ID: "10", Name: "meshpanel-ssh-evil", User: &hs.User{Name: "eve"}, Online: true}
+	if evs := d.Diff([]hs.Node{n("1", true), spoof}, t0); kinds(evs)[NodeAdded] != 1 {
+		t.Fatalf("spoofed name suppressed alerts: %+v", evs)
 	}
 }

@@ -88,7 +88,7 @@ func (a *Agent) runOnce(ctx context.Context) error {
 		s.Logf = log.New(os.Stderr, "tsnet-agent: ", log.LstdFlags).Printf
 	}
 	if !stateExists(a.Dir) {
-		key, err := authKey(ctx, a.HS, a.HSUser, false, true)
+		key, _, err := authKey(ctx, a.HS, a.HSUser, false, true)
 		if err != nil {
 			return err
 		}

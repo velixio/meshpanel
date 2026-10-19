@@ -172,3 +172,13 @@ func TestVersionNotHeadscale(t *testing.T) {
 		t.Fatalf("%q %v", v, err)
 	}
 }
+
+func TestNodePreAuthKeyDecodes(t *testing.T) {
+	c := fakeSocket(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"nodes":[{"id":"5","name":"meshpanel-ssh-ravi","preAuthKey":{"id":"77","key":"","reusable":false,"ephemeral":true,"used":true,"aclTags":[]},"tags":[]}]}`)
+	}))
+	nodes, err := c.ListNodes(context.Background())
+	if err != nil || nodes[0].PreAuthKey == nil || nodes[0].PreAuthKey.ID != "77" {
+		t.Fatalf("%+v %v", nodes, err)
+	}
+}
