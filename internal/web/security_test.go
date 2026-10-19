@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -113,5 +114,23 @@ func TestVersionShownInSidebar(t *testing.T) {
 	_, body, _ = h.client().get("/admin/login")
 	if !strings.Contains(body, "· test</p>") {
 		t.Fatal("sign-in page doesn't show the version")
+	}
+}
+
+// The theme lives on <html data-theme>, which an htmx body swap never updates,
+// so choosing one has to be a full page load.
+func TestThemeFormReloadsThePage(t *testing.T) {
+	h := newHarness(t)
+	_, secret := h.account("boss", "owner", "")
+	c := h.client()
+	c.login("boss", secret)
+	_, body, _ := c.get("/admin/account")
+	if !regexp.MustCompile(`<form[^>]*action="/admin/account/theme"[^>]*hx-boost="false"`).MatchString(body) {
+		t.Fatal("theme form is boosted: the new theme won't apply until a manual reload")
+	}
+	c.post("/admin/account", "/admin/account/theme", url.Values{"theme": {"midnight"}})
+	_, body, _ = c.get("/admin/account")
+	if !strings.Contains(body, `data-theme="midnight"`) {
+		t.Fatal("theme not applied after saving")
 	}
 }

@@ -9,7 +9,7 @@
 <div class="grid g2">
   <section class="card" style="grid-column:1/-1">
     <div class="hd"><h2>Theme</h2></div>
-    <form class="bd stack" method="post" action="{{.Base}}/account/theme">{{template "csrf" .CSRF}}
+    <form class="bd stack" method="post" action="{{.Base}}/account/theme" hx-boost="false">{{template "csrf" .CSRF}}
       <div class="themes">
         <label class="theme-opt"><input type="radio" name="theme" value="paper" {{if eq .Me.Theme "paper"}}checked{{end}}><span class="sw"><i style="background:#f7f7f5"></i><i style="background:#ffffff"></i><i style="background:#1c1c1a"></i></span><span class="nm">Paper</span></label>
         <label class="theme-opt"><input type="radio" name="theme" value="midnight" {{if eq .Me.Theme "midnight"}}checked{{end}}><span class="sw"><i style="background:#0b0d12"></i><i style="background:#171b26"></i><i style="background:#7c5cff"></i></span><span class="nm">Midnight</span></label>
