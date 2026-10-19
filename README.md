@@ -102,6 +102,7 @@ sudo systemctl enable --now meshpanel
 sudo -u meshpanel meshpanel doctor        # checks socket, version, files, proxy
 
 # 4. Open https://headscale.example.com/admin/setup to create the owner account.
+#    It asks for the one-time setup code printed in the log: journalctl -u meshpanel | grep setup_code
 ```
 
 ### Reverse proxy

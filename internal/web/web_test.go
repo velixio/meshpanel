@@ -198,7 +198,7 @@ func TestSetupOnlyWhenEmpty(t *testing.T) {
 	if code, _, _ := c.get("/admin/setup"); code != 200 {
 		t.Fatalf("setup on empty db: %d", code)
 	}
-	code, _, hdr := c.post("/admin/setup", "/admin/setup", url.Values{"username": {"boss"}, "password": {testPassword}, "confirm": {testPassword}})
+	code, _, hdr := c.post("/admin/setup", "/admin/setup", url.Values{"setup_token": {h.s.SetupToken()}, "username": {"boss"}, "password": {testPassword}, "confirm": {testPassword}})
 	if code != http.StatusSeeOther || !strings.Contains(hdr.Get("Location"), "/2fa/enroll") {
 		t.Fatalf("setup post: %d %q", code, hdr.Get("Location"))
 	}
@@ -331,7 +331,7 @@ func TestTOTPReplayRejected(t *testing.T) {
 func TestTOTPSecretStoredSealed(t *testing.T) {
 	h := newHarness(t)
 	c := h.client()
-	c.post("/admin/setup", "/admin/setup", url.Values{"username": {"boss"}, "password": {testPassword}, "confirm": {testPassword}})
+	c.post("/admin/setup", "/admin/setup", url.Values{"setup_token": {h.s.SetupToken()}, "username": {"boss"}, "password": {testPassword}, "confirm": {testPassword}})
 	c.get("/admin/2fa/enroll")
 	a, _ := h.d.GetAccountByUsername(context.Background(), "boss")
 	if a.TOTPSecret == "" || !strings.HasPrefix(a.TOTPSecret, "enc1:") {

@@ -241,7 +241,7 @@ func runServe(args []string) error {
 	go func() {
 		slog.Info("meshpanel listening", "addr", cfg.Server.Listen, "dashboard", cfg.Server.BasePath+"/", "version", version)
 		if n, _ := d.CountAccounts(ctx); n == 0 {
-			slog.Info("no accounts yet: open " + cfg.Server.BasePath + "/setup in a browser, or run `meshpanel setup`")
+			slog.Info("no accounts yet: open "+cfg.Server.BasePath+"/setup in a browser, or run `meshpanel setup`", "setup_code", srv.SetupToken())
 		}
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errc <- err

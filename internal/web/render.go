@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
+	"modernc.org/sqlite"
 
 	"github.com/meshpanel/meshpanel/internal/db"
 	"github.com/meshpanel/meshpanel/internal/events"
@@ -248,10 +250,25 @@ func (s *Server) back(r *http.Request) string {
 	return s.base + "/"
 }
 
-// friendly makes an error short enough for a toast.
+// errInternal is what users see instead of database and other internal
+// errors; the real error goes to the log.
+const errInternal = "Something went wrong on the server. The details are in meshpanel's log."
+
+// internal logs err and returns the message to show instead.
+func internal(err error) string {
+	slog.Error("internal error", "err", err)
+	return errInternal
+}
+
+// friendly makes an error short enough for a toast. Database errors are
+// logged, not shown: they leak schema details.
 func friendly(err error) string {
 	if err == nil {
 		return ""
+	}
+	var sqlErr *sqlite.Error
+	if errors.As(err, &sqlErr) {
+		return internal(err)
 	}
 	msg := err.Error()
 	msg = strings.TrimPrefix(msg, "headscale: ")

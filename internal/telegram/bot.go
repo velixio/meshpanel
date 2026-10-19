@@ -395,7 +395,7 @@ func (b *Bot) handleCallback(ctx context.Context, cb *CallbackQuery) {
 		b.answer(ctx, cb.ID, "This request no longer exists.", false)
 		return
 	}
-	if !mayDecide(acc, p) {
+	if acc.ID == p.RequesterID || !mayDecide(acc, p) {
 		b.answer(ctx, cb.ID, "You don't have permission to approve this request.", true)
 		return
 	}

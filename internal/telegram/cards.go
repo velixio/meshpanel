@@ -22,7 +22,7 @@ func cardBody(p *db.Pending, requester *db.Account) string {
 	if p.Kind == registration.KindSSH {
 		b.WriteString("🔑 SSH sign-in check\n")
 	} else {
-		fmt.Fprintf(&b, "📱 %s\n", e(registration.DescribeUA(p.UserAgent)))
+		fmt.Fprintf(&b, "📱 link opened on %s (not necessarily the joining device)\n", e(registration.DescribeUA(p.UserAgent)))
 	}
 	if p.IP != "" {
 		fmt.Fprintf(&b, "🌐 %s\n", e(p.IP))
