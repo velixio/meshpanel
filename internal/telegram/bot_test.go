@@ -67,6 +67,9 @@ func (f *fakeHS) AuthRegister(context.Context, string, string) (hs.Node, error) 
 	f.calls++
 	return hs.Node{ID: "9", GivenName: "ravi-iphone"}, nil
 }
+func (f *fakeHS) RenameNode(_ context.Context, id, name string) (hs.Node, error) {
+	return hs.Node{ID: id, GivenName: name}, nil
+}
 func (f *fakeHS) AuthApprove(context.Context, string) error { f.calls++; return nil }
 func (f *fakeHS) AuthReject(context.Context, string) error  { return nil }
 

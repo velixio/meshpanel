@@ -20,7 +20,20 @@ type fakeHS struct {
 	calls    atomic.Int32
 	lastUser string
 	fail     error
+	node     string // GivenName AuthRegister reports (default "ravi-iphone")
+	taken    map[string]bool
+	renamed  []string
 	mu       sync.Mutex
+}
+
+func (f *fakeHS) RenameNode(_ context.Context, id, name string) (hs.Node, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.taken[name] {
+		return hs.Node{}, errors.New("name taken")
+	}
+	f.renamed = append(f.renamed, name)
+	return hs.Node{ID: id, GivenName: name}, nil
 }
 
 func (f *fakeHS) AuthRegister(_ context.Context, user, id string) (hs.Node, error) {
@@ -32,7 +45,11 @@ func (f *fakeHS) AuthRegister(_ context.Context, user, id string) (hs.Node, erro
 	if f.fail != nil {
 		return hs.Node{}, f.fail
 	}
-	return hs.Node{ID: "9", GivenName: "ravi-iphone", IPAddresses: []string{"100.64.0.9"}}, nil
+	name := f.node
+	if name == "" {
+		name = "ravi-iphone"
+	}
+	return hs.Node{ID: "9", GivenName: name, IPAddresses: []string{"100.64.0.9"}}, nil
 }
 func (f *fakeHS) AuthApprove(context.Context, string) error { f.calls.Add(1); return f.fail }
 func (f *fakeHS) AuthReject(context.Context, string) error  { return nil }
@@ -180,5 +197,68 @@ func TestUnlinkedRequesterNeedsUser(t *testing.T) {
 	got, _ := s.Get(ctx, p.ID)
 	if got.Status != db.StatusPending {
 		t.Fatal("request consumed by a failed precondition")
+	}
+}
+
+const iphoneUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1"
+
+func TestGenericHostnameGetsFriendlyName(t *testing.T) {
+	for _, reported := range []string{"localhost", "localhost-ab12", "Localhost"} {
+		s, f, _, ravi, anna := setup(t)
+		f.node = reported
+		ctx := context.Background()
+		p, _ := s.Create(ctx, KindRegister, authID, ravi, "1.2.3.4", iphoneUA)
+		got, err := s.Decide(ctx, p.ID, true, anna, "web", "")
+		if err != nil || got.NodeName != "ravi-iphone" || len(f.renamed) != 1 || f.renamed[0] != "ravi-iphone" {
+			t.Fatalf("%s: %+v renamed=%v err=%v", reported, got, f.renamed, err)
+		}
+		if got.NodeIP != "100.64.0.9" {
+			t.Fatalf("lost the IP: %q", got.NodeIP)
+		}
+	}
+}
+
+func TestRealHostnameIsKept(t *testing.T) {
+	s, f, _, ravi, anna := setup(t)
+	f.node = "annas-pixel"
+	ctx := context.Background()
+	p, _ := s.Create(ctx, KindRegister, authID, ravi, "1.2.3.4", iphoneUA)
+	got, _ := s.Decide(ctx, p.ID, true, anna, "web", "")
+	if got.NodeName != "annas-pixel" || len(f.renamed) != 0 {
+		t.Fatalf("renamed a real hostname: %+v %v", got, f.renamed)
+	}
+}
+
+func TestFriendlyNameSkipsTakenAndUnknown(t *testing.T) {
+	s, f, _, ravi, anna := setup(t)
+	f.node, f.taken = "localhost", map[string]bool{"ravi-iphone": true}
+	ctx := context.Background()
+	p, _ := s.Create(ctx, KindRegister, authID, ravi, "1.2.3.4", iphoneUA)
+	got, _ := s.Decide(ctx, p.ID, true, anna, "web", "")
+	if got.NodeName != "ravi-iphone-2" {
+		t.Fatalf("taken name: %q", got.NodeName)
+	}
+	s2, f2, _, ravi2, anna2 := setup(t)
+	f2.node = "localhost"
+	p2, _ := s2.Create(ctx, KindRegister, authID, ravi2, "1.2.3.4", "curl/8")
+	got2, _ := s2.Decide(ctx, p2.ID, true, anna2, "web", "")
+	if got2.NodeName != "localhost" || len(f2.renamed) != 0 {
+		t.Fatalf("unknown device renamed: %+v", got2)
+	}
+}
+
+func TestDeviceSlug(t *testing.T) {
+	for ua, want := range map[string]string{
+		iphoneUA: "iphone",
+		"Mozilla/5.0 (iPad; CPU OS 17_2 like Mac OS X) AppleWebKit": "ipad",
+		"Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit":      "android-pixel-8",
+		"Mozilla/5.0 (Linux; Android 13; K) AppleWebKit":            "android",
+		"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)":           "mac",
+		"Mozilla/5.0 (Windows NT 10.0; Win64; x64)":                 "windows",
+		"curl/8": "", "": "",
+	} {
+		if got := DeviceSlug(ua); got != want {
+			t.Errorf("%q: %q, want %q", ua, got, want)
+		}
 	}
 }

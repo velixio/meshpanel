@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/meshpanel/meshpanel/internal/db"
@@ -42,6 +43,7 @@ func (e *AlreadyDecidedError) Error() string {
 // Registrar is the part of hs.Client registration needs.
 type Registrar interface {
 	AuthRegister(ctx context.Context, user, authID string) (hs.Node, error)
+	RenameNode(ctx context.Context, id, name string) (hs.Node, error)
 	AuthApprove(ctx context.Context, authID string) error
 	AuthReject(ctx context.Context, authID string) error
 }
@@ -143,6 +145,9 @@ func (s *Service) Decide(ctx context.Context, id int64, approve bool, actor *db.
 	default:
 		var n hs.Node
 		n, callErr = s.hs.AuthRegister(hctx, user, p.AuthID)
+		if callErr == nil {
+			n = s.friendlyName(hctx, n, user, p.UserAgent)
+		}
 		nodeName = n.DisplayName()
 		if len(n.IPAddresses) > 0 {
 			nodeIP = n.IPAddresses[0]
@@ -218,4 +223,41 @@ func (s *Service) publish(k events.Kind, p *db.Pending, actor, channel string) {
 		Kind: k, At: s.now(), HSUser: p.HSUser, Actor: actor, Channel: channel, NodeName: p.NodeName,
 		Data: map[string]any{"id": p.ID, "status": p.Status, "kind": p.Kind},
 	})
+}
+
+// genericHostname reports names a client uses when it has no real one: iOS
+// says "localhost", and headscale appends a suffix when that clashes.
+func genericHostname(n string) bool {
+	n = strings.ToLower(n)
+	return n == "" || n == "localhost" || strings.HasPrefix(n, "localhost-")
+}
+
+// friendlyName renames a just-registered device that reported a generic
+// hostname to "<user>-<kind>" (ravi-iphone), using the browser that opened
+// the link as the hint. Anything that goes wrong leaves the name as it was.
+func (s *Service) friendlyName(ctx context.Context, n hs.Node, user, ua string) hs.Node {
+	kind := DeviceSlug(ua)
+	if kind == "" || !genericHostname(n.GivenName) {
+		return n
+	}
+	base := kind
+	if u := slug(user); u != "" {
+		base = u + "-" + kind
+	}
+	if len(base) > 55 {
+		base = strings.Trim(base[:55], "-")
+	}
+	for i := 1; i <= 5; i++ { // a name already taken gets -2, -3, …
+		name := base
+		if i > 1 {
+			name = fmt.Sprintf("%s-%d", base, i)
+		}
+		if renamed, err := s.hs.RenameNode(ctx, n.ID, name); err == nil {
+			if len(renamed.IPAddresses) == 0 {
+				renamed.IPAddresses = n.IPAddresses
+			}
+			return renamed
+		}
+	}
+	return n
 }
