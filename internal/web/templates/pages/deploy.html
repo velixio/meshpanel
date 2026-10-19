@@ -1,0 +1,58 @@
+{{define "content"}}{{$d := .Data}}{{$f := $d.Form}}
+<div class="page-head"><div><div class="crumbs"><a href="{{.Base}}/machines">Machines</a>{{icon "chev"}}</div><h1>Add a device</h1><p class="sub">Phones and laptops sign in themselves. Servers get a ready-made command.</p></div></div>
+<div class="split" style="grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)">
+  <section class="card">
+    <div class="hd"><h2>{{icon "phone"}} Phones, laptops, desktops</h2></div>
+    <div class="bd stack">
+      <div class="row"><span class="badge accent">1</span> Install the Tailscale app.</div>
+      <div class="row"><span class="badge accent">2</span> Set the server to:</div>
+      <div class="secret"><code>{{$d.Opts.Server}}</code><button class="btn ghost sm icon-only" data-copy="{{$d.Opts.Server}}" aria-label="Copy">{{icon "copy"}}</button></div>
+      <p class="small muted">iOS: Settings → Tailscale → Alternate coordination server. Android: ⋮ → Change server. macOS/Windows: the menu-bar app's debug menu, or <code>tailscale login --login-server={{$d.Opts.Server}}</code>.</p>
+      <div class="row"><span class="badge accent">3</span> Tap <b>Log in</b>, sign in with your meshpanel account, and confirm.</div>
+      <p class="small muted">If your role can approve your own devices, it joins right away; otherwise an approver gets a Telegram message.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hd"><h2>{{icon "server"}} Servers and headless devices</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/machines/new">{{template "csrf" .CSRF}}
+      {{if $d.Error}}<div class="banner danger">{{icon "alert"}}<div>{{$d.Error}}</div></div>{{end}}
+      <div class="form-grid">
+        <label class="field">Hostname <span class="help">Optional</span><input class="input mono" name="hostname" value="{{index $f "hostname"}}" placeholder="web-01"></label>
+        {{if $d.CanTags}}<label class="field">Tags <span class="help">Optional; makes it a tagged device</span><input class="input mono" name="tags" value="{{index $f "tags"}}" placeholder="tag:server"></label>{{end}}
+        <label class="field full">Advertise subnet routes <span class="help">Optional; comma separated</span><input class="input mono" name="routes" value="{{index $f "routes"}}" placeholder="192.168.1.0/24"></label>
+      </div>
+      <div class="grid g2">
+        <label class="check"><input type="checkbox" name="ssh" {{if eq (index $f "ssh") "on"}}checked{{end}}><span>Tailscale SSH<span class="help">Allow SSH by tailnet identity</span></span></label>
+        <label class="check"><input type="checkbox" name="exit_node" {{if eq (index $f "exit_node") "on"}}checked{{end}}><span>Offer as exit node</span></label>
+        <label class="check"><input type="checkbox" name="accept_routes" {{if eq (index $f "accept_routes") "on"}}checked{{end}}><span>Use other subnet routes</span></label>
+        <label class="check"><input type="checkbox" name="no_dns" {{if eq (index $f "no_dns") "on"}}checked{{end}}><span>Keep its own DNS<span class="help">--accept-dns=false (servers usually want this)</span></span></label>
+      </div>
+      <fieldset class="stack">
+        <label class="check"><input type="radio" name="auth" value="login" {{if ne (index $f "auth") "key"}}checked{{end}}><span>Sign in on the device<span class="help">It prints a link; open it, sign in, confirm</span></span></label>
+        {{if $d.CanKeys}}<label class="check"><input type="radio" name="auth" value="key" {{if eq (index $f "auth") "key"}}checked{{end}}><span>Include a pre-auth key<span class="help">No interaction needed</span></span></label>
+        <div class="form-grid" style="padding-left:25px">
+          {{if not $d.OwnOnly}}<label class="field">For user<select class="input" name="user"><option value="">— tags only —</option>{{range $d.Users}}<option {{if eq .Name (index $f "user")}}selected{{end}}>{{.Name}}</option>{{end}}</select></label>{{end}}
+          <label class="field">Key valid for<select class="input" name="expiry_hours"><option value="1">1 hour</option><option value="24" selected>1 day</option><option value="168">7 days</option><option value="720">30 days</option><option value="8760">1 year</option></select></label>
+          <label class="check"><input type="checkbox" name="reusable"><span>Reusable</span></label>
+          <label class="check"><input type="checkbox" name="ephemeral"><span>Ephemeral</span></label>
+        </div>{{end}}
+      </fieldset>
+      <div><button class="btn primary">{{icon "zap"}}Generate commands</button></div>
+    </form>
+  </section>
+</div>
+
+{{with $d.Cmds}}
+<section class="card mt-lg">
+  <div class="hd"><h2>Commands</h2>{{if $d.KeyMade}}<span class="badge warn">contains a new key: copy it now</span>{{end}}</div>
+  <div class="bd stack">
+    <div><div class="small muted">Linux (installs Tailscale too)</div><div class="secret"><code>{{.Linux}}</code><button class="btn ghost sm icon-only" data-copy="{{.Linux}}" aria-label="Copy">{{icon "copy"}}</button></div></div>
+    <div><div class="small muted">macOS</div><div class="secret"><code>{{.MacOS}}</code><button class="btn ghost sm icon-only" data-copy="{{.MacOS}}" aria-label="Copy">{{icon "copy"}}</button></div></div>
+    <div><div class="small muted">Windows (admin PowerShell)</div><div class="secret"><code>{{.Windows}}</code><button class="btn ghost sm icon-only" data-copy="{{.Windows}}" aria-label="Copy">{{icon "copy"}}</button></div></div>
+    <div><div class="small muted">Docker</div><pre class="block">{{.Docker}}</pre><button class="btn sm mt" data-copy="{{.Docker}}">{{icon "copy"}}Copy</button></div>
+    {{if $d.Opts.Routes}}<div class="banner info">{{icon "info"}}<div>Advertised routes need approval on the machine's page unless your policy auto-approves them.</div></div>{{end}}
+  </div>
+</section>
+{{end}}
+{{end}}

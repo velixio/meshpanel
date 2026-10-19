@@ -188,6 +188,8 @@ func (s *Server) Handler() http.Handler {
 	page("POST "+b+"/approvals/{id}", s.approvalDecide)
 
 	page("GET "+b+"/machines", s.machines)
+	page("GET "+b+"/machines/new", s.deployPage)
+	page("POST "+b+"/machines/new", s.deployPost)
 	page("GET "+b+"/machines/{id}", s.machine)
 	page("POST "+b+"/machines/{id}/{action}", s.machineAction)
 	page("GET "+b+"/machines/{id}/ssh", s.sshPage)
@@ -210,6 +212,7 @@ func (s *Server) Handler() http.Handler {
 
 	page("GET "+b+"/access", s.access)
 	page("POST "+b+"/access", s.accessPost)
+	page("GET "+b+"/access/download", s.accessDownload)
 
 	page("GET "+b+"/dns", s.dns)
 	page("POST "+b+"/dns", s.dnsPost)

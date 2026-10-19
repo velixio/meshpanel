@@ -2,9 +2,11 @@ package web
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/meshpanel/meshpanel/internal/perm"
 )
@@ -114,6 +116,19 @@ func (s *Server) accessPost(w http.ResponseWriter, r *http.Request) {
 	op := r.PostFormValue("op")
 	proposed := r.PostFormValue("policy")
 	switch {
+	case op == "upload":
+		f, _, err := r.FormFile("file")
+		if err != nil {
+			s.failed(w, r, s.base+"/access?tab=editor", errors.New("choose a policy file to upload"))
+			return
+		}
+		b, err := io.ReadAll(io.LimitReader(f, 1<<20+1))
+		f.Close()
+		if err != nil || len(b) > 1<<20 {
+			s.failed(w, r, s.base+"/access?tab=editor", errors.New("policy files are limited to 1 MB"))
+			return
+		}
+		proposed = string(b)
 	case op == "review" || op == "apply":
 	case strings.HasPrefix(op, "v:"):
 		doc, err := parsePolicy(d.Policy)
@@ -153,4 +168,19 @@ func (s *Server) accessPost(w http.ResponseWriter, r *http.Request) {
 	}
 	s.audit(r, "policy.apply", d.Mode, d.Policy, proposed)
 	s.ok(w, r, s.base+"/access", "Policy applied.")
+}
+
+// accessDownload serves the current policy as a file.
+func (s *Server) accessDownload(w http.ResponseWriter, r *http.Request) {
+	if !s.need(w, r, perm.ReadPolicy) {
+		return
+	}
+	pol, err := s.HS.GetPolicy(r.Context())
+	if err != nil {
+		s.failed(w, r, s.base+"/access", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/hujson; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="policy-`+time.Now().Format("2006-01-02")+`.hujson"`)
+	w.Write([]byte(pol.Policy))
 }

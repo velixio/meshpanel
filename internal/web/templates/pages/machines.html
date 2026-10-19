@@ -2,10 +2,10 @@
 <div class="page-head">
   <div><h1>{{if has .Caps "read_machines"}}Machines{{else}}My devices{{end}}</h1><p class="sub">{{$d.Counts.all}} total · {{$d.Counts.online}} online</p></div>
   <div class="actions">
-    {{if or (has .Caps "generate_authkeys") (has .Caps "generate_own_authkeys")}}<a class="btn" href="{{.Base}}/keys">{{icon "key"}}Pre-auth key</a>{{end}}
+    <a class="btn" href="{{.Base}}/machines/new">{{icon "plus"}}Add a device</a>
     {{if has .Caps "approve_devices"}}
     <details data-menu class="req" style="padding:0;border:0">
-      <summary class="btn primary">{{icon "plus"}}Add device</summary>
+      <summary class="btn primary">{{icon "link"}}Register by link</summary>
       <div class="menu" style="min-width:320px;padding:12px">
         <form method="post" action="{{.Base}}/machines/register" class="stack">
           {{template "csrf" .CSRF}}
