@@ -165,11 +165,14 @@ func runServe(args []string) error {
 		}
 	}
 	var sshMgr *tailnet.Manager
+	var sessionKeys *tailnet.SessionKeys
 	if cfg.WebSSH.Enabled {
+		sessionKeys = &tailnet.SessionKeys{}
+		poller.SetIgnore(sessionKeys.Owns)
 		base := filepath.Join(tailnetDir, "ssh")
 		_ = os.RemoveAll(base) // leftovers from sessions cut off by a restart
 		sshMgr = &tailnet.Manager{
-			Nodes:    &ts.TSFactory{HS: client, ControlURL: controlURL, BaseDir: base, Debug: cfg.Log.Level == "debug"},
+			Nodes:    &ts.TSFactory{HS: client, Keys: sessionKeys, ControlURL: controlURL, BaseDir: base, Debug: cfg.Log.Level == "debug"},
 			MaxTotal: cfg.WebSSH.MaxSessions, MaxPerUser: cfg.WebSSH.MaxPerUser,
 		}
 	}
@@ -187,6 +190,7 @@ func runServe(args []string) error {
 	}
 	if sshMgr != nil {
 		deps.SSH = sshMgr
+		deps.SessionNodes = sessionKeys
 	}
 	srv, err := web.New(deps)
 	if err != nil {

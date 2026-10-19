@@ -15,6 +15,10 @@ const expiringWindow = 7 * 24 * time.Hour
 // Differ turns successive node snapshots into events. The first snapshot
 // only primes it.
 type Differ struct {
+	// Ignore hides nodes meshpanel itself created (browser SSH sessions).
+	// It must identify them by something devices can't forge, like the
+	// pre-auth key meshpanel minted, never by hostname.
+	Ignore   func(hs.Node) bool
 	prev     map[string]hs.Node
 	primed   bool
 	expiring map[string]bool // node ids already reported as expiring
@@ -32,10 +36,13 @@ func nodeEvent(k Kind, n hs.Node, now time.Time) Event {
 func (d *Differ) Diff(all []hs.Node, now time.Time) []Event {
 	// Browser SSH sessions come and go as ephemeral nodes; they are not
 	// devices anyone wants alerts about.
-	next := make([]hs.Node, 0, len(all))
-	for _, n := range all {
-		if !n.IsWebSSH() {
-			next = append(next, n)
+	next := all
+	if d.Ignore != nil {
+		next = make([]hs.Node, 0, len(all))
+		for _, n := range all {
+			if !d.Ignore(n) {
+				next = append(next, n)
+			}
 		}
 	}
 	cur := make(map[string]hs.Node, len(next))
@@ -179,6 +186,9 @@ func (p *Poller) Run(ctx context.Context) {
 		p.Tick(ctx)
 	}
 }
+
+// SetIgnore hides nodes from events (see Differ.Ignore). Call before Run.
+func (p *Poller) SetIgnore(f func(hs.Node) bool) { p.differ.Ignore = f }
 
 // Refresh asks for an immediate poll (after a change made through the panel).
 func (p *Poller) Refresh() {

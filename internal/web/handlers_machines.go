@@ -18,10 +18,11 @@ import (
 
 type machineRow struct {
 	hs.Node
-	Search string
-	State  string
-	Owner  string // panel account display name, if linked
-	OS     string // from the tailnet agent, when enabled
+	Search  string
+	State   string
+	Owner   string // panel account display name, if linked
+	OS      string // from the tailnet agent, when enabled
+	Session bool   // a meshpanel browser-SSH node
 }
 
 type machinesData struct {
@@ -74,6 +75,7 @@ func (s *Server) machines(w http.ResponseWriter, r *http.Request) {
 			d.Counts[k]++
 		}
 		row := machineRow{Node: n, State: st}
+		row.Session = s.SessionNodes != nil && s.SessionNodes.Owns(n)
 		if a, ok := owners[n.UserName()]; ok && a.Name() != n.UserName() {
 			row.Owner = a.Name()
 		}
