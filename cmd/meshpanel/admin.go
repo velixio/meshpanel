@@ -237,13 +237,17 @@ func runDoctor(args []string) error {
 	}
 	check("configuration is valid", cfg.Validate(), "")
 
-	client := hs.New(cfg.Headscale.Socket, cfg.Headscale.HTTPURL)
-	check("headscale socket "+cfg.Headscale.Socket, client.Health(ctx), "is headscale running, and is meshpanel's user in the socket's group?")
+	client := newHSClient(cfg)
+	if client.Legacy() {
+		check("headscale API "+cfg.Headscale.HTTPURL, client.Health(ctx), "is headscale running, and is headscale.api_key valid (headscale apikeys list)?")
+	} else {
+		check("headscale socket "+cfg.Headscale.Socket, client.Health(ctx), "is headscale running, and is meshpanel's user in the socket's group?")
+	}
 	v, err := client.Version(ctx)
 	if err == nil {
-		err = hs.CheckSupported(v)
+		err = client.CheckSupportedFor(v)
 		if err == nil && !hs.IsTested(v) {
-			warn("headscale version", v+" is newer than tested (0.30.x)")
+			warn("headscale version", v+" is newer than tested (0.29.x, 0.30.x)")
 		}
 	}
 	check("headscale version "+v, err, "set headscale.http_url to headscale's listen_addr")

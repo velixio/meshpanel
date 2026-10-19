@@ -182,3 +182,83 @@ func TestNodePreAuthKeyDecodes(t *testing.T) {
 		t.Fatalf("%+v %v", nodes, err)
 	}
 }
+
+// fakeGateway stands in for headscale 0.29.x's REST gateway on its TCP listener.
+func fakeGateway(t *testing.T, h http.HandlerFunc) *Client {
+	t.Helper()
+	srv := httptest.NewServer(h)
+	t.Cleanup(srv.Close)
+	return New("/nonexistent.sock", srv.URL).UseAPIKey("hskey-api-abc")
+}
+
+func TestLegacySendsAPIKeyOverTCP(t *testing.T) {
+	var auth, path string
+	c := fakeGateway(t, func(w http.ResponseWriter, r *http.Request) {
+		auth, path = r.Header.Get("Authorization"), r.URL.Path
+		io.WriteString(w, `{"nodes":[{"id":"1","givenName":"a"}]}`)
+	})
+	ns, err := c.ListNodes(context.Background())
+	if err != nil || len(ns) != 1 || auth != "Bearer hskey-api-abc" || path != "/api/v1/node" {
+		t.Fatalf("nodes=%v err=%v auth=%q path=%q", ns, err, auth, path)
+	}
+}
+
+func TestLegacyExpiryUsesQuery(t *testing.T) {
+	var got []string
+	c := fakeGateway(t, func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		got = append(got, r.URL.Path+"?"+r.URL.RawQuery+" "+string(b))
+		io.WriteString(w, `{"node":{"id":"1"}}`)
+	})
+	c.SetKeyExpiryDisabled(context.Background(), "1", true)
+	c.SetKeyExpiryDisabled(context.Background(), "1", false)
+	if got[0] != "/api/v1/node/1/expire?disableExpiry=true " {
+		t.Fatalf("disable: %q", got[0])
+	}
+	if !strings.HasPrefix(got[1], "/api/v1/node/1/expire?expiry=") || !strings.HasSuffix(got[1], " ") {
+		t.Fatalf("enable: %q", got[1])
+	}
+}
+
+func TestLegacyGatewayErrors(t *testing.T) {
+	c := fakeGateway(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v1/user" {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		io.WriteString(w, `{"code":5,"message":"node not found","details":[]}`)
+	})
+	_, err := c.GetNode(context.Background(), "9")
+	if err == nil || !IsNotFound(err) || !strings.Contains(err.Error(), "node not found") {
+		t.Fatalf("gateway error: %v", err)
+	}
+	_, err = c.ListUsers(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "apikeys create") {
+		t.Fatalf("401 should say how to make a key: %v", err)
+	}
+}
+
+func TestCheckSupportedFor(t *testing.T) {
+	sock, rest := New("/x", "http://h"), New("/x", "http://h").UseAPIKey("k")
+	for _, tc := range []struct {
+		v        string
+		sock, ok bool
+	}{
+		{"0.29.3", false, true}, {"v0.29.5", false, true}, {"0.28.0", false, false},
+		{"0.30.0", true, true}, {"dev", true, true},
+	} {
+		if err := sock.CheckSupportedFor(tc.v); (err == nil) != tc.sock {
+			t.Errorf("socket %s: %v", tc.v, err)
+		}
+		if err := rest.CheckSupportedFor(tc.v); (err == nil) != tc.ok {
+			t.Errorf("api key %s: %v", tc.v, err)
+		}
+	}
+	if err := sock.CheckSupportedFor("0.29.3"); err == nil || !strings.Contains(err.Error(), "headscale.api_key") {
+		t.Fatalf("0.29 without a key should explain the API key: %v", err)
+	}
+	if !IsTested("0.29.3") || !IsTested("0.30.1") || IsTested("0.31.0") {
+		t.Fatal("IsTested lines")
+	}
+}

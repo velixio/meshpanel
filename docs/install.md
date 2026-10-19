@@ -1,7 +1,18 @@
 # Installing meshpanel
 
-This guide assumes headscale 0.30+ runs on the same machine as a systemd
-service, with its config at `/etc/headscale/config.yaml`.
+This guide assumes headscale (0.29.x or newer) runs on the same machine as a
+systemd service, with its config at `/etc/headscale/config.yaml`.
+
+**headscale 0.29.x** has no HTTP API on its socket, so meshpanel uses its REST
+API with a key. Create one and put it in meshpanel's config:
+
+```sh
+sudo headscale apikeys create --expiration 999d     # prints the key once
+sudo install -m 0640 -g meshpanel /dev/stdin /etc/meshpanel/headscale_api_key   # paste, then Ctrl-D
+# config.yaml:  headscale: { api_key_path: /etc/meshpanel/headscale_api_key }
+```
+
+headscale 0.30 and `main` need no key; the socket setup below is enough.
 
 ## 1. Binary and user
 

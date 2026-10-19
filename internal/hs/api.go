@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type nodeResp struct {
@@ -42,6 +43,15 @@ func (c *Client) SetKeyExpiryDisabled(ctx context.Context, id string, disabled b
 	body := map[string]any{"disableExpiry": true}
 	if !disabled {
 		body = map[string]any{"expiry": nowFunc().AddDate(0, 0, 180).UTC()}
+	}
+	if c.Legacy() {
+		// The 0.29 gateway takes these as query parameters, not a body.
+		q := url.Values{"disableExpiry": {"true"}}
+		if !disabled {
+			q = url.Values{"expiry": {nowFunc().AddDate(0, 0, 180).UTC().Format(time.RFC3339)}}
+		}
+		err := c.do(ctx, http.MethodPost, "/api/v1/node/"+esc(id)+"/expire?"+q.Encode(), nil, &out)
+		return out.Node, err
 	}
 	err := c.do(ctx, http.MethodPost, "/api/v1/node/"+esc(id)+"/expire", body, &out)
 	return out.Node, err

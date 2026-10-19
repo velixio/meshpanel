@@ -1,6 +1,9 @@
 // Package hs is meshpanel's only door to headscale. It speaks headscale's
 // HTTP API (v1) over the local unix socket, where headscale trusts callers
-// without an API key. Every headscale-version difference lives here.
+// without an API key (headscale 0.30 and main). Released 0.29.x serves no
+// HTTP API on the socket, but its REST gateway on the TCP listener speaks
+// nearly the same JSON, so with an API key the client uses that instead.
+// Every headscale-version difference lives here.
 package hs
 
 import (
@@ -27,6 +30,8 @@ type Client struct {
 	httpURL string
 	sock    *http.Client
 	tcp     *http.Client
+	apiKey  string
+	rest    *http.Client
 }
 
 // New returns a client for the socket. httpURL is headscale's TCP listener,
@@ -45,8 +50,20 @@ func New(socket, httpURL string) *Client {
 		httpURL: strings.TrimRight(httpURL, "/"),
 		sock:    &http.Client{Transport: tr, Timeout: 20 * time.Second},
 		tcp:     &http.Client{Timeout: 5 * time.Second},
+		rest:    &http.Client{Timeout: 20 * time.Second},
 	}
 }
+
+// UseAPIKey switches the client to headscale's REST gateway on the TCP
+// listener (http_url), authenticated with an API key. It is how meshpanel
+// talks to headscale 0.29.x. An empty key keeps the unix socket.
+func (c *Client) UseAPIKey(key string) *Client {
+	c.apiKey = strings.TrimSpace(key)
+	return c
+}
+
+// Legacy reports whether the client talks to the 0.29.x REST gateway.
+func (c *Client) Legacy() bool { return c.apiKey != "" }
 
 func (c *Client) Socket() string { return c.socket }
 
@@ -55,6 +72,8 @@ type APIError struct {
 	Status int    `json:"status"`
 	Title  string `json:"title"`
 	Detail string `json:"detail"`
+	// Message is the gateway's error text in headscale 0.29.x.
+	Message string `json:"message"`
 }
 
 func (e *APIError) Error() string {
@@ -80,18 +99,28 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 		}
 		body = bytes.NewReader(b)
 	}
-	req, err := http.NewRequestWithContext(ctx, method, "http://unix"+path, body)
+	hc, base := c.sock, "http://unix"
+	if c.Legacy() {
+		hc, base = c.rest, c.httpURL
+	}
+	req, err := http.NewRequestWithContext(ctx, method, base+path, body)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
+	if c.Legacy() {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 	if in != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	resp, err := c.sock.Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
+		}
+		if c.Legacy() {
+			return fmt.Errorf("cannot reach headscale at %s: %v", c.httpURL, err)
 		}
 		return fmt.Errorf("%w %s: %v", ErrSocket, c.socket, unwrapNet(err))
 	}
@@ -102,11 +131,17 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		ae := &APIError{Status: resp.StatusCode}
-		if json.Unmarshal(data, ae) != nil || (ae.Title == "" && ae.Detail == "") {
+		if json.Unmarshal(data, ae) != nil || (ae.Title == "" && ae.Detail == "" && ae.Message == "") {
 			ae.Title = strings.TrimSpace(string(data))
 			if ae.Title == "" {
 				ae.Title = http.StatusText(resp.StatusCode)
 			}
+		}
+		if ae.Detail == "" {
+			ae.Detail = ae.Message
+		}
+		if c.Legacy() && resp.StatusCode == http.StatusUnauthorized {
+			ae.Detail = "headscale rejected the API key (expired or wrong?). Create one with: headscale apikeys create --expiration 999d"
 		}
 		ae.Status = resp.StatusCode
 		return ae
@@ -181,6 +216,27 @@ var ErrUnsupportedVersion = errors.New("unsupported headscale version")
 
 var semverRe = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)`)
 
+// CheckSupportedFor is CheckSupported for this client: with an API key it
+// also accepts the 0.29 line, whose REST gateway it uses.
+func (c *Client) CheckSupportedFor(v string) error {
+	if c.Legacy() {
+		if m := semverRe.FindStringSubmatch(strings.TrimSpace(v)); m != nil && m[1] == "0" {
+			if minor, _ := strconv.Atoi(m[2]); minor == 29 {
+				return nil
+			}
+		}
+	}
+	err := CheckSupported(v)
+	if errors.Is(err, ErrUnsupportedVersion) && !c.Legacy() {
+		if m := semverRe.FindStringSubmatch(strings.TrimSpace(v)); m != nil && m[1] == "0" {
+			if minor, _ := strconv.Atoi(m[2]); minor == 29 {
+				return fmt.Errorf("%w: headscale %s has no HTTP API on its socket. Create an API key with `headscale apikeys create --expiration 999d` and set headscale.api_key (or api_key_path) so meshpanel can use headscale's REST API at headscale.http_url", ErrUnsupportedVersion, v)
+			}
+		}
+	}
+	return err
+}
+
 // CheckSupported accepts headscale 0.30.0 and newer, plus unversioned
 // development builds. Older versions speak a different API (gRPC on the
 // socket) and are refused.
@@ -205,7 +261,7 @@ func CheckSupported(v string) error {
 // newer lines run but show a warning.
 func IsTested(v string) bool {
 	m := semverRe.FindStringSubmatch(strings.TrimSpace(v))
-	return m == nil || (m[1] == "0" && m[2] == "30")
+	return m == nil || (m[1] == "0" && (m[2] == "30" || m[2] == "29"))
 }
 
 var authIDRe = regexp.MustCompile(`^hskey-authreq-[0-9a-f]{24}$`)

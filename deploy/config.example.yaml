@@ -22,9 +22,15 @@ server:
   # session_secret_path: /etc/meshpanel/session_secret
 
 headscale:
+  # headscale 0.29.x has no HTTP API on its socket: create a key with
+  #   headscale apikeys create --expiration 999d
+  # and set it here (or api_key_path). With a key, meshpanel uses headscale's
+  # REST API at http_url instead of the socket. headscale 0.30+ needs no key.
+  # api_key: ""
+  # api_key_path: /etc/meshpanel/headscale_api_key
   # headscale's unix socket. meshpanel's user must be in the socket's group.
   socket: "/var/run/headscale/headscale.sock"
-  # headscale's local HTTP listener, used only to read /version.
+  # headscale's local HTTP listener: reads /version, and serves the REST API when api_key is set.
   http_url: "http://127.0.0.1:8080"
   # headscale's config.yaml. Needed for DNS editing; leave empty to disable.
   config_path: "/etc/headscale/config.yaml"

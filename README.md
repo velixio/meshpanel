@@ -81,7 +81,10 @@ People who are allowed to approve their own devices skip the wait.
 
 ## Requirements
 
-- **headscale 0.30 or newer.** meshpanel talks to headscale's HTTP API over its local unix socket, which needs no API key. Older headscale versions speak gRPC on the socket and are refused at startup.
+- **headscale 0.29.x or newer.**
+  - **0.29.x (the current release):** meshpanel uses headscale's REST API at `headscale.http_url` with an API key: `headscale apikeys create --expiration 999d`, then set `headscale.api_key` (or `api_key_path`) in meshpanel's config. Without a key it refuses to start and says so.
+  - **0.30 and `main` builds:** meshpanel uses headscale's local unix socket, which needs no API key.
+  - Older than 0.29 is not supported.
 - meshpanel runs **on the same machine** as headscale.
 - A reverse proxy (Caddy, nginx, …) that already terminates HTTPS for headscale. meshpanel serves plain HTTP on port 8030.
 

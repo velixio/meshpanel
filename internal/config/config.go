@@ -41,6 +41,8 @@ type Server struct {
 type Headscale struct {
 	Socket         string        `yaml:"socket"`
 	HTTPURL        string        `yaml:"http_url"`
+	APIKey         string        `yaml:"api_key"`
+	APIKeyPath     string        `yaml:"api_key_path"`
 	ConfigPath     string        `yaml:"config_path"`
 	PolicyPath     string        `yaml:"policy_path"`
 	Binary         string        `yaml:"binary"`
@@ -127,6 +129,11 @@ func Load(path string) (*Config, error) {
 	var err error
 	if c.Server.SessionSecretPath != "" {
 		if c.Server.SessionSecret, err = readSecret(c.Server.SessionSecretPath); err != nil {
+			return nil, err
+		}
+	}
+	if c.Headscale.APIKeyPath != "" {
+		if c.Headscale.APIKey, err = readSecret(c.Headscale.APIKeyPath); err != nil {
 			return nil, err
 		}
 	}

@@ -83,6 +83,12 @@ func persistedSecret(path string) (string, error) {
 	return s, nil
 }
 
+// newHSClient talks to headscale over its socket, or, with headscale.api_key
+// set (headscale 0.29.x), over its REST API at headscale.http_url.
+func newHSClient(cfg *config.Config) *hs.Client {
+	return hs.New(cfg.Headscale.Socket, cfg.Headscale.HTTPURL).UseAPIKey(cfg.Headscale.APIKey)
+}
+
 func setupLogging(level string) {
 	var l slog.Level
 	if err := l.UnmarshalText([]byte(level)); err != nil {
@@ -113,7 +119,7 @@ func runServe(args []string) error {
 	}
 	defer d.Close()
 
-	client := hs.New(cfg.Headscale.Socket, cfg.Headscale.HTTPURL)
+	client := newHSClient(cfg)
 	var hsVersion struct {
 		sync.Mutex
 		v string
@@ -128,7 +134,7 @@ func runServe(args []string) error {
 		hsVersion.Lock()
 		hsVersion.v = v
 		hsVersion.Unlock()
-		if err := hs.CheckSupported(v); err != nil {
+		if err := client.CheckSupportedFor(v); err != nil {
 			return err
 		}
 		if !hs.IsTested(v) {

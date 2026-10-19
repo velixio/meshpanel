@@ -95,3 +95,19 @@ func TestValidateWeakSecret(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestAPIKeyFromFile(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "key")
+	os.WriteFile(p, []byte("hskey-api-xyz\n"), 0o600)
+	cfg := filepath.Join(t.TempDir(), "c.yaml")
+	os.WriteFile(cfg, []byte("headscale:\n  api_key_path: "+p+"\n"), 0o600)
+	c, err := Load(cfg)
+	if err != nil || c.Headscale.APIKey != "hskey-api-xyz" {
+		t.Fatalf("%+v %v", c.Headscale.APIKey, err)
+	}
+	t.Setenv("MESHPANEL_HEADSCALE_API_KEY", "from-env")
+	c, _ = Load("")
+	if c.Headscale.APIKey != "from-env" {
+		t.Fatalf("env: %q", c.Headscale.APIKey)
+	}
+}
