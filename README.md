@@ -2,6 +2,8 @@
 
 <h1 align="center">meshpanel</h1>
 
+[![views](https://app.supermetry.com/px/zfjiv7psp4ed.svg?c=meshpanel&style=stats)](https://supermetry.com)
+
 <p align="center"><b>A control panel for <a href="https://github.com/juanfont/headscale">headscale</a> that lets people add their own phones and laptops, with no terminal involved.</b><br>
 Device approvals in the browser or on Telegram, local accounts with two-factor, roles for teams, and a live dashboard. One Go binary.</p>
 
