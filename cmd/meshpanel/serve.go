@@ -132,8 +132,8 @@ func runServe(args []string) error {
 		sync.Mutex
 		v string
 	}
-	checkVersion := func() error {
-		vctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	checkVersion := func(parent context.Context) error {
+		vctx, cancel := context.WithTimeout(parent, 5*time.Second)
 		defer cancel()
 		v, err := client.Version(vctx)
 		if err != nil {
@@ -150,7 +150,7 @@ func runServe(args []string) error {
 		}
 		return nil
 	}
-	if err := checkVersion(); err != nil {
+	if err := checkVersion(ctx); err != nil {
 		if errors.Is(err, hs.ErrUnsupportedVersion) {
 			return err
 		}
@@ -230,7 +230,8 @@ func runServe(args []string) error {
 	deps := web.Deps{
 		Cfg: cfg, DB: d, HS: client, Poller: poller, Bus: bus, Reg: reg,
 		Sessions: auth.NewSessions(d), Limiter: auth.NewLimiter(), HSConfig: editor, Applier: applier, Version: version,
-		HSVersion: func() string { hsVersion.Lock(); defer hsVersion.Unlock(); return hsVersion.v },
+		HSVersion:        func() string { hsVersion.Lock(); defer hsVersion.Unlock(); return hsVersion.v },
+		RefreshHSVersion: checkVersion,
 	}
 	if bot != nil {
 		deps.TG = bot
@@ -292,7 +293,7 @@ func runServe(args []string) error {
 				return
 			case ev := <-ch:
 				if ev.Kind == events.HeadscaleUp {
-					if err := checkVersion(); errors.Is(err, hs.ErrUnsupportedVersion) {
+					if err := checkVersion(ctx); errors.Is(err, hs.ErrUnsupportedVersion) {
 						slog.Error("headscale was changed to an unsupported version", "err", err)
 					}
 				}
