@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -28,6 +29,12 @@ func (s *Server) headscaleUpdatePost(w http.ResponseWriter, r *http.Request, her
 		return
 	}
 	if r.PathValue("section") == "headscale_update_check" {
+		if s.RefreshHSVersion != nil {
+			if err := s.RefreshHSVersion(ctx); err != nil {
+				s.failed(w, r, here, err)
+				return
+			}
+		}
 		s.ok(w, r, here, "Latest stable Headscale release: "+rel.Tag)
 		return
 	}
@@ -58,6 +65,14 @@ func (s *Server) headscaleUpdatePost(w http.ResponseWriter, r *http.Request, her
 		return
 	}
 	s.audit(r, "headscale.update", rel.Tag, current, "upstream checksum verified")
+	// A fast restart can fall between poll intervals and emit no HeadscaleUp
+	// event. Reload the version before redirecting to the Settings page.
+	if s.RefreshHSVersion != nil {
+		if err := s.RefreshHSVersion(installCtx); err != nil {
+			slog.Warn("refresh Headscale version after update", "err", err)
+			msg += " The running version could not be refreshed; use Check Headscale updates to retry."
+		}
+	}
 	s.Poller.Refresh()
 	s.ok(w, r, here, msg)
 }

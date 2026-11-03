@@ -83,8 +83,10 @@ type Deps struct {
 	Applier   *hsconfig.Applier // nil when config editing is unavailable
 	Version   string
 	HSVersion func() string
-	Agent     HostInfoSource // nil unless agent.enabled
-	SSH       SSHOpener      // nil unless web_ssh.enabled
+	// RefreshHSVersion reloads the running version independently of poller health transitions.
+	RefreshHSVersion func(context.Context) error
+	Agent            HostInfoSource // nil unless agent.enabled
+	SSH              SSHOpener      // nil unless web_ssh.enabled
 	// SessionNodes recognises meshpanel's own browser-SSH nodes (by the
 	// pre-auth key it minted, not by name). nil when SSH is off.
 	SessionNodes interface{ Owns(hs.Node) bool }
