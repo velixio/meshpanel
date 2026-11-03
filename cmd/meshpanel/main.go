@@ -30,6 +30,7 @@ The config path defaults to $MESHPANEL_CONFIG, then /etc/meshpanel/config.yaml
 (if it exists). Every key can be set with MESHPANEL_* environment variables.
 `
 
+// main dispatches CLI commands and handles service restarts after an update.
 func main() {
 	// No command, or only flags (meshpanel -c x.yaml), means serve.
 	cmd, args := "serve", os.Args[1:]

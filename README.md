@@ -189,6 +189,7 @@ sudo systemctl restart meshpanel
 sudo journalctl -u meshpanel -n 20 --no-pager
 ```
 
+Configure an absolute `db.path` so the CLI and service use the same staging directory.
 The command uses the same signed releases as the UI and stages the download;
 it does not restart the service itself. It respects `update.enabled` and
 `update.repo`, and accounts for a newer verified staged version when the

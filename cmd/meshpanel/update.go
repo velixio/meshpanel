@@ -14,6 +14,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/update"
 )
 
+// runUpdate checks or stages a signed release using the configured state directory.
 func runUpdate(args []string) error {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	cfgPath := configFlag(fs)
@@ -36,6 +37,9 @@ func runUpdate(args []string) error {
 	if !cfg.Update.Enabled {
 		return errors.New("updates are turned off (update.enabled)")
 	}
+	if !filepath.IsAbs(cfg.DB.Path) {
+		return fmt.Errorf("update requires an absolute db.path: %q is relative, so the service may not find the staged release", cfg.DB.Path)
+	}
 	u := update.New(cfg.Update.Repo, filepath.Dir(cfg.DB.Path), version)
 	if err := u.Updatable(); err != nil {
 		return err
@@ -55,6 +59,7 @@ type releaseUpdater interface {
 	Install(context.Context, *update.Release) error
 }
 
+// downloadUpdate stages only newer releases and reports when a restart is needed.
 func downloadUpdate(ctx context.Context, u releaseUpdater, current string, check bool, out io.Writer) error {
 	rel, err := u.Latest(ctx, true)
 	if err != nil {

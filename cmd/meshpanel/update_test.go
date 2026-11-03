@@ -25,6 +25,7 @@ func (f *fakeReleaseUpdater) Install(context.Context, *update.Release) error {
 	return f.installErr
 }
 
+// TestDownloadUpdate covers version selection, check-only mode, and update failures.
 func TestDownloadUpdate(t *testing.T) {
 	for _, tt := range []struct {
 		name, current, latest string
@@ -59,11 +60,25 @@ func TestDownloadUpdate(t *testing.T) {
 	}
 }
 
+// TestUpdateArguments verifies help and rejection of unexpected positional arguments.
 func TestUpdateArguments(t *testing.T) {
 	if err := runUpdate([]string{"unexpected"}); err == nil {
 		t.Fatal("accepted unexpected argument")
 	}
 	if err := runUpdate([]string{"--help"}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestUpdateRejectsRelativeDBPath prevents staging into the operator's working directory.
+func TestUpdateRejectsRelativeDBPath(t *testing.T) {
+	t.Chdir(t.TempDir())
+	t.Setenv("MESHPANEL_UPDATE_ENABLED", "true")
+	t.Setenv("MESHPANEL_DB_PATH", "state/meshpanel.db")
+	for _, args := range [][]string{{"-c", ""}, {"-c", "", "--check"}} {
+		err := runUpdate(args)
+		if err == nil || !strings.Contains(err.Error(), "requires an absolute db.path") || !strings.Contains(err.Error(), "state/meshpanel.db") {
+			t.Fatalf("expected relative path error, got %v", err)
+		}
 	}
 }
