@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -248,6 +249,18 @@ func runServe(args []string) error {
 	if sshMgr != nil {
 		deps.SSH = sshMgr
 		deps.SessionNodes = sessionKeys
+	}
+	deps.HeadscaleUpdater = update.NewHeadscale("")
+	if cfg.Headscale.UpdateEnabled {
+		deps.InstallHeadscale = func(ctx context.Context, tag string) (string, error) {
+			cmd := exec.CommandContext(ctx, "/usr/bin/sudo", "-n", "/usr/bin/systemd-run", "--quiet", "--wait", "--pipe", "--collect", "--unit", "meshpanel-headscale-update", "/usr/bin/meshpanel", "headscale", "update", "--from-ui")
+			cmd.Stdin = strings.NewReader(tag + "\n")
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				return "", fmt.Errorf("Headscale update helper: %w: %s", err, strings.TrimSpace(string(out)))
+			}
+			return strings.TrimSpace(string(out)), nil
+		}
 	}
 	srv, err := web.New(deps)
 	if err != nil {

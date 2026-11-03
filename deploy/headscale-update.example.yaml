@@ -1,0 +1,10 @@
+# Install as /etc/meshpanel/headscale-update.yaml, owned by root, mode 0600.
+# This file is read by the root helper, not the Meshpanel web service.
+# Match the paths and service used by your local Headscale binary installation.
+# Supported: SQLite, Linux/systemd, patch releases within the same release line.
+binary: /usr/bin/headscale
+config_dir: /etc/headscale
+data_dir: /var/lib/headscale
+backup_dir: /var/lib/headscale-backups
+service: headscale.service
+health_url: http://127.0.0.1:8045/health

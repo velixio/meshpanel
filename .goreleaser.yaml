@@ -96,6 +96,10 @@ nfpms:
         type: config|noreplace
         file_info:
           mode: 0640
+      - src: deploy/headscale-update.example.yaml
+        dst: /usr/share/doc/meshpanel/headscale-update.example.yaml
+      - src: deploy/headscale-update.sudoers
+        dst: /usr/share/doc/meshpanel/headscale-update.sudoers
       - src: deploy/sudoers
         dst: /usr/share/doc/meshpanel/sudoers.example
       - src: deploy/Caddyfile

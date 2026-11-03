@@ -44,6 +44,29 @@
   </section>
   {{end}}
 
+  {{if and $d.HeadscaleUpdate.On (has .Caps "owner")}}
+  <section class="card">
+    <div class="hd"><h2>{{icon "zap"}} Headscale updates</h2>{{if $d.HeadscaleUpdate.Newer}}<span class="badge warn">update available</span>{{end}}</div>
+    <div class="bd stack">
+      <div class="row between small"><span class="muted">Running</span><span class="mono">{{if $d.HeadscaleUpdate.Current}}{{$d.HeadscaleUpdate.Current}}{{else}}unknown{{end}}</span></div>
+      {{if $d.HeadscaleUpdate.CheckErr}}<div class="banner danger" role="alert">{{$d.HeadscaleUpdate.CheckErr}}</div>{{end}}
+      {{if $d.HeadscaleUpdate.Latest}}
+      <div><b>Latest: {{$d.HeadscaleUpdate.Latest.Tag}}</b> · <a href="{{$d.HeadscaleUpdate.Latest.URL}}" target="_blank" rel="noopener noreferrer">Release notes</a></div>
+      {{if $d.HeadscaleUpdate.CantWhy}}<p class="help">{{$d.HeadscaleUpdate.CantWhy}}</p>{{end}}
+      {{if and $d.HeadscaleInstall $d.HeadscaleUpdate.Newer (not $d.HeadscaleUpdate.CantWhy)}}
+      <form method="post" action="{{.Base}}/settings/headscale_update_install" hx-disabled-elt="find button" hx-confirm="Install Headscale {{$d.HeadscaleUpdate.Latest.Tag}}? Headscale will briefly stop while its binary, configuration and data are backed up. The download is checked against upstream checksums, then Headscale is restarted. This may take several minutes.">{{template "csrf" .CSRF}}
+        <input type="hidden" name="tag" value="{{$d.HeadscaleUpdate.Latest.Tag}}">
+        <button class="btn primary">{{icon "zap"}}Install Headscale {{$d.HeadscaleUpdate.Latest.Tag}}</button>
+        <p class="update-progress help" role="status">Downloading, backing up and restarting Headscale…</p>
+      </form>
+      {{end}}{{end}}
+      <form method="post" action="{{.Base}}/settings/headscale_update_check" hx-disabled-elt="find button">{{template "csrf" .CSRF}}<button class="btn">Check Headscale updates</button></form>
+      {{if not $d.HeadscaleInstall}}<p class="help">Installation is not enabled. Ask your server administrator to configure the Headscale update helper.</p>{{end}}
+      <p class="help">Patch releases only. Downloads are verified against Headscale's upstream checksums over HTTPS.</p>
+    </div>
+  </section>
+  {{end}}
+
   <section class="card">
     <div class="hd"><h2>Branding</h2></div>
     <form class="bd stack" method="post" action="{{.Base}}/settings/brand" enctype="multipart/form-data" hx-boost="false">{{template "csrf" .CSRF}}

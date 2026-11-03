@@ -361,3 +361,7 @@ kbd { font-size: 11px; padding: 1px 5px; border-radius: 4px; border: 1px var(--b
 .ssh-card { background: #0b0d12; border-color: #1f2433; padding: 10px; overflow: hidden; }
 .terminal-host { height: calc(100vh - 290px); min-height: 360px; }
 .terminal-host .xterm { height: 100%; }
+
+/* Long-running Headscale installation feedback. */
+.update-progress { display: none; }
+.htmx-request .update-progress { display: block; }

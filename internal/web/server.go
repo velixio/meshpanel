@@ -91,7 +91,9 @@ type Deps struct {
 	Webhooks     WebhookSender
 	// Updater installs signed releases from Settings (owners only); nil when
 	// update.enabled is false.
-	Updater *update.Updater
+	Updater          *update.Updater
+	HeadscaleUpdater *update.Updater
+	InstallHeadscale func(context.Context, string) (string, error)
 }
 
 // WebhookSender delivers one event to one webhook (for "Send test").

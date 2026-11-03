@@ -198,6 +198,54 @@ command, use `/var/lib/meshpanel/update/meshpanel` if that staged version suppor
 it, or install a release containing CLI update support manually first.
 
 
+### Updating Headscale from the CLI or UI
+
+Owners can check upstream releases in **Settings → Headscale updates**. Binary
+installation is opt-in and supports local Linux/systemd installations using
+SQLite. Automatic installs are limited to newer patch releases in the same
+major/minor version; follow Headscale's release instructions for minor upgrades.
+
+For a service running `/usr/bin/headscale serve` with its data in
+`/var/lib/headscale`, configure the privileged helper:
+
+```bash
+sudo install -o root -g root -m 0600 deploy/headscale-update.example.yaml /etc/meshpanel/headscale-update.yaml
+sudo editor /etc/meshpanel/headscale-update.yaml
+sudo meshpanel headscale update --check
+sudo meshpanel headscale update
+```
+
+Set the helper's paths and health URL to match the actual service. It reads
+`config_dir/config.yaml`; the SQLite database must use an absolute path within
+`data_dir`. Keep all Headscale state in that directory. PostgreSQL, containers,
+relative database paths and installations with external state require a manual
+upgrade. The helper configuration and its parent directories must be owned by
+root and must not be writable by other users. Its `-c` flag selects this separate
+helper configuration, **not** Meshpanel's normal config file.
+
+To enable installation in the UI, first install a Meshpanel binary containing
+this command at `/usr/bin/meshpanel` (a staged self-update alone is insufficient).
+Validate and install `deploy/headscale-update.sudoers` as
+`/etc/sudoers.d/meshpanel-headscale-update` using `visudo`, set
+`headscale.update_enabled: true` in Meshpanel's config, and restart Meshpanel.
+Owners then get an **Install Headscale** button with a version-specific
+confirmation. The helper runs as a separate systemd job so Meshpanel can retain
+its read-only system filesystem sandbox. Keep the fixed sudoers command intact;
+do not grant wildcard command arguments.
+
+Both entry points download from `juanfont/headscale` over HTTPS and check the
+binary against upstream `checksums.txt`; this is not Meshpanel's signed-release
+verification. The service is stopped before backing up its binary, configuration
+and complete data directory. The binary is atomically replaced, the service is
+started, and its health endpoint is checked. `Restart=always` is supported because
+an explicit systemd stop suppresses automatic restart during backup.
+
+Backups are retained in `backup_dir/before-update-*` (root-only), and their path
+is reported after installation. If startup or health checks fail, inspect the
+Headscale journal and the backup before recovery. The helper does not automatically
+downgrade a potentially migrated database. UI update actions are recorded in the
+audit log. A browser disconnect does not cancel the installation once started.
+
 ## How device approval works
 
 ```

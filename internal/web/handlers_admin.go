@@ -97,33 +97,35 @@ func csvSafe(s string) string {
 // ---------- settings ----------
 
 type settingsData struct {
-	HSVersion      string
-	VersionTested  bool
-	VersionErr     string
-	Socket         string
-	Healthy        bool
-	HSError        string
-	PolicyMode     string
-	ConfigPath     string
-	ConfigWritable bool
-	ApplyReady     bool
-	TGEnabled      bool
-	TGBot          string
-	TGErr          string
-	GroupChat      string
-	Brand          Brand
-	Users          []hs.User
-	Uptime         string
-	AgentOn        bool
-	Agent          tailnet.AgentState
-	SSHOn          bool
-	SSHActive      int
-	Webhooks       []*db.Webhook
-	HookKinds      []events.Kind
-	DeviceLimit    int
-	KeyLifetime    string
-	KeyLifetimes   []keyLifetime
-	Update         updateView
+	HSVersion        string
+	VersionTested    bool
+	VersionErr       string
+	Socket           string
+	Healthy          bool
+	HSError          string
+	PolicyMode       string
+	ConfigPath       string
+	ConfigWritable   bool
+	ApplyReady       bool
+	TGEnabled        bool
+	TGBot            string
+	TGErr            string
+	GroupChat        string
+	Brand            Brand
+	Users            []hs.User
+	Uptime           string
+	AgentOn          bool
+	Agent            tailnet.AgentState
+	SSHOn            bool
+	SSHActive        int
+	Webhooks         []*db.Webhook
+	HookKinds        []events.Kind
+	DeviceLimit      int
+	KeyLifetime      string
+	KeyLifetimes     []keyLifetime
+	Update           updateView
+	HeadscaleUpdate  updateView
+	HeadscaleInstall bool
 }
 
 // updateView is the Settings → Updates card.
@@ -178,6 +180,19 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 	if s.HSVersion != nil {
 		d.HSVersion = s.HSVersion()
 		d.VersionTested = hs.IsTested(d.HSVersion)
+	}
+	if u := s.HeadscaleUpdater; u != nil {
+		d.HeadscaleUpdate = updateView{On: true, Current: d.HSVersion}
+		d.HeadscaleInstall = s.InstallHeadscale != nil
+		rel, err := u.Cached()
+		if rel != nil {
+			d.HeadscaleUpdate.Latest = rel
+			d.HeadscaleUpdate.Newer = update.Newer(rel.Tag, d.HSVersion)
+			d.HeadscaleUpdate.CantWhy = update.HeadscaleUpgradeReason(d.HSVersion, rel.Tag)
+		}
+		if err != nil {
+			d.HeadscaleUpdate.CheckErr = friendly(err)
+		}
 	}
 	if s.HSConfig != nil {
 		d.ConfigPath, d.ConfigWritable = s.HSConfig.Path, s.HSConfig.Writable()
@@ -244,6 +259,8 @@ func (s *Server) settingsPost(w http.ResponseWriter, r *http.Request) {
 		}
 		s.audit(r, "settings.brand", name, nil, accent)
 		s.ok(w, r, here, "Branding saved.")
+	case "headscale_update_check", "headscale_update_install":
+		s.headscaleUpdatePost(w, r, here)
 	case "update_check", "update_install":
 		s.updatePost(w, r, here)
 	case "devices":
