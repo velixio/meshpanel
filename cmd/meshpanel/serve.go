@@ -123,9 +123,15 @@ func runServe(args []string) error {
 
 	d, err := db.Open(cfg.DB.Path)
 	if err != nil {
-		return fmt.Errorf("opening database %s: %w", cfg.DB.Path, err)
+		return fmt.Errorf("opening database %s: %w\n%s", cfg.DB.Path, err, db.AccessInstructions(cfg.DB.Path))
 	}
 	defer d.Close()
+	writeCtx, writeCancel := context.WithTimeout(ctx, 5*time.Second)
+	writeErr := d.CheckWritable(writeCtx)
+	writeCancel()
+	if writeErr != nil {
+		return fmt.Errorf("database write check failed: %w\n%s", writeErr, db.AccessInstructions(d.Path()))
+	}
 
 	client := newHSClient(cfg)
 	var hsVersion struct {

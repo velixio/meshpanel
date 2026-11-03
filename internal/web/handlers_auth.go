@@ -61,6 +61,7 @@ func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "login", s.page(w, r, "", "Sign in", s.authContext(r.URL.Query().Get("next"), r)))
 }
 
+// loginPost verifies the password and creates the session required for two-factor authentication.
 func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	username := strings.ToLower(strings.TrimSpace(r.PostFormValue("username")))
@@ -114,7 +115,11 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 	tok, err := s.Sessions.Create(ctx, acc.ID, clientIP(r), r.UserAgent(), false)
 	if err != nil {
 		slog.Error("create login session", "account_id", acc.ID, "err", err)
-		fail("Could not start a session. Try again.")
+		if db.IsReadOnly(err) {
+			fail(s.errorMessage(err))
+		} else {
+			fail("Could not start a session. Try again.")
+		}
 		return
 	}
 	s.setSessionCookie(w, tok)
@@ -208,7 +213,11 @@ func (s *Server) finishLogin(w http.ResponseWriter, r *http.Request, id *identit
 	tok, err := s.Sessions.Create(ctx, id.Account.ID, clientIP(r), r.UserAgent(), true)
 	if err != nil {
 		slog.Error("create authenticated session", "account_id", id.Account.ID, "err", err)
-		s.renderError(w, r, 500, "Sign-in failed", "Could not create a session.")
+		message := "Could not create a session."
+		if db.IsReadOnly(err) {
+			message = s.errorMessage(err)
+		}
+		s.renderError(w, r, 500, "Sign-in failed", message)
 		return
 	}
 	s.setSessionCookie(w, tok)

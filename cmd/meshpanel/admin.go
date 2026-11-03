@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -205,17 +206,24 @@ func runBackup(args []string) error {
 	return nil
 }
 
+// runDoctor diagnoses the installation without initializing databases or changing permissions.
 func runDoctor(args []string) error {
 	fs := flag.NewFlagSet("doctor", flag.ExitOnError)
 	cfgPath := configFlag(fs)
 	fs.Parse(args)
-	cfg, err := loadConfig(*cfgPath)
+	cfg, err := config.Load(*cfgPath)
 	if err != nil {
 		return err
 	}
+	// Read an existing generated secret, but do not create one during diagnosis.
+	if cfg.Server.SessionSecret == "" {
+		if b, err := os.ReadFile(filepath.Join(filepath.Dir(cfg.DB.Path), "session_secret")); err == nil {
+			cfg.Server.SessionSecret = strings.TrimSpace(string(b))
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	failures := 0
+	failures, warnings := 0, 0
 	check := func(name string, err error, hint string) {
 		if err == nil {
 			fmt.Printf("  ✓ %s\n", name)
@@ -227,7 +235,7 @@ func runDoctor(args []string) error {
 			fmt.Printf("      → %s\n", hint)
 		}
 	}
-	warn := func(name, msg string) { fmt.Printf("  ! %s: %s\n", name, msg) }
+	warn := func(name, msg string) { warnings++; fmt.Printf("  ! %s: %s\n", name, msg) }
 
 	fmt.Println("meshpanel doctor")
 	if *cfgPath == "" {
@@ -269,14 +277,28 @@ func runDoctor(args []string) error {
 		check("policy file writable "+p, err, "")
 	}
 
-	d, err := db.Open(cfg.DB.Path)
-	check("database "+cfg.DB.Path, err, "the directory must be writable by meshpanel's user")
-	if err == nil {
-		n, _ := d.CountAccounts(ctx)
-		if n == 0 {
-			warn("accounts", "none yet; open /setup or run `meshpanel setup -u NAME`")
+	if os.Geteuid() == 0 {
+		_, err := os.Stat(cfg.DB.Path)
+		check("database exists "+cfg.DB.Path, err, "confirm db.path; doctor will not create a database")
+		warn("database write access", db.AccessInstructions(cfg.DB.Path))
+	} else {
+		d, err := db.OpenExisting(cfg.DB.Path)
+		if err == nil {
+			err = d.CheckWritable(ctx)
 		}
-		d.Close()
+		hint := ""
+		if err != nil {
+			hint = db.AccessInstructions(cfg.DB.Path)
+		}
+		check("database writable "+cfg.DB.Path, err, hint)
+		if d != nil {
+			if err == nil {
+				if n, countErr := d.CountAccounts(ctx); countErr == nil && n == 0 {
+					warn("accounts", "none yet; open /setup or run meshpanel setup as the service user")
+				}
+			}
+			d.Close()
+		}
 	}
 
 	if cfg.Telegram.Token != "" {
@@ -306,6 +328,10 @@ func runDoctor(args []string) error {
 	if failures > 0 {
 		return fmt.Errorf("%d check(s) failed", failures)
 	}
-	fmt.Println("All good.")
+	if warnings > 0 {
+		fmt.Println("Checks completed; review the warnings above.")
+	} else {
+		fmt.Println("All good.")
+	}
 	return nil
 }
