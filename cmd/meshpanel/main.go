@@ -23,12 +23,14 @@ Usage:
   meshpanel user list        [-c …]            list panel accounts
   meshpanel backup  [-c config.yaml] DEST      write a consistent copy of the database
   meshpanel doctor  [-c config.yaml]           check the installation
+  meshpanel update  [-c config.yaml] [--check] download a signed update, or check only
   meshpanel version
 
 The config path defaults to $MESHPANEL_CONFIG, then /etc/meshpanel/config.yaml
 (if it exists). Every key can be set with MESHPANEL_* environment variables.
 `
 
+// main dispatches CLI commands and handles service restarts after an update.
 func main() {
 	// No command, or only flags (meshpanel -c x.yaml), means serve.
 	cmd, args := "serve", os.Args[1:]
@@ -45,6 +47,8 @@ func main() {
 		err = runUser(args)
 	case "backup":
 		err = runBackup(args)
+	case "update":
+		err = runUpdate(args)
 	case "doctor":
 		err = runDoctor(args)
 	case "version", "--version", "-v":

@@ -179,6 +179,25 @@ web_ssh:
 - **Not for development builds.** Turn it off with `update.enabled: false`. `update.repo` changes the GitHub repository; the signing key still has to match.
 - To update by hand, install the new package or binary as before.
 
+Without dashboard access, use the CLI (run as the service user so staged files
+remain readable and writable by the service):
+
+```bash
+sudo -u meshpanel /usr/bin/meshpanel update -c /etc/meshpanel/config.yaml --check
+sudo -u meshpanel /usr/bin/meshpanel update -c /etc/meshpanel/config.yaml
+sudo systemctl restart meshpanel
+sudo journalctl -u meshpanel -n 20 --no-pager
+```
+
+Configure an absolute `db.path` so the CLI and service use the same staging directory.
+The command uses the same signed releases as the UI and stages the download;
+it does not restart the service itself. It respects `update.enabled` and
+`update.repo`, and accounts for a newer verified staged version when the
+installed launcher is older. If your launcher does not yet have the `update`
+command, use `/var/lib/meshpanel/update/meshpanel` if that staged version supports
+it, or install a release containing CLI update support manually first.
+
+
 ## How device approval works
 
 ```
