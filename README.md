@@ -240,7 +240,9 @@ release tarball), as `/etc/sudoers.d/meshpanel-headscale-update` using `visudo`.
 Owners then get an **Install Headscale** button with a version-specific
 confirmation. The helper runs as a separate systemd job so Meshpanel can retain
 its read-only system filesystem sandbox. Keep the fixed sudoers command intact;
-do not grant wildcard command arguments.
+do not grant wildcard command arguments. Older Meshpanel service files with an
+empty `CapabilityBoundingSet` need the [sudo capability override](docs/install.md#sudo-capability-errors)
+before the helper can run.
 
 Both entry points download from `juanfont/headscale` over HTTPS and check the
 binary against upstream `checksums.txt`; this is not Meshpanel's signed-release
