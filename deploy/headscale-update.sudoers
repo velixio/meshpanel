@@ -1,0 +1,5 @@
+# Optional: install with visudo -f /etc/sudoers.d/meshpanel-headscale-update
+# No wildcards or caller-supplied paths/commands. The confirmed version is read
+# from stdin and independently checked against upstream by the root helper.
+# A transient service runs outside Meshpanel's ProtectSystem=strict sandbox.
+meshpanel ALL=(root) NOPASSWD: /usr/bin/systemd-run --quiet --wait --pipe --collect --unit meshpanel-headscale-update /usr/bin/meshpanel headscale update --from-ui

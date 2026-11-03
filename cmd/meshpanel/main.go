@@ -24,6 +24,7 @@ Usage:
   meshpanel backup  [-c config.yaml] DEST      write a consistent copy of the database
   meshpanel doctor  [-c config.yaml]           check the installation
   meshpanel update  [-c config.yaml] [--check] download a signed update, or check only
+  meshpanel headscale update [--check] [-c …] update a local Headscale installation
   meshpanel version
 
 The config path defaults to $MESHPANEL_CONFIG, then /etc/meshpanel/config.yaml
@@ -47,6 +48,8 @@ func main() {
 		err = runUser(args)
 	case "backup":
 		err = runBackup(args)
+	case "headscale":
+		err = runHeadscale(args)
 	case "update":
 		err = runUpdate(args)
 	case "doctor":

@@ -22,6 +22,8 @@ server:
   # session_secret_path: /etc/meshpanel/session_secret
 
 headscale:
+  # Optional owner-only binary patch updates; configure the root helper first.
+  update_enabled: false
   # headscale 0.29.x has no HTTP API on its socket: create a key with
   #   headscale apikeys create --expiration 999d
   # and set it here (or api_key_path). With a key, meshpanel uses headscale's

@@ -47,6 +47,7 @@ type Server struct {
 }
 
 type Headscale struct {
+	UpdateEnabled  bool          `yaml:"update_enabled"` // owner-only installation via the privileged CLI helper
 	Socket         string        `yaml:"socket"`
 	HTTPURL        string        `yaml:"http_url"`
 	APIKey         string        `yaml:"api_key"`

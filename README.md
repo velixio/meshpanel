@@ -198,6 +198,63 @@ command, use `/var/lib/meshpanel/update/meshpanel` if that staged version suppor
 it, or install a release containing CLI update support manually first.
 
 
+### Updating Headscale from the CLI or UI
+
+Owners can check upstream releases in **Settings → Headscale updates**. Binary
+installation is opt-in and supports local Linux/systemd installations using
+SQLite. Automatic installs are limited to newer patch releases in the same
+major/minor version; follow Headscale's release instructions for minor upgrades.
+
+For a service running `/usr/bin/headscale serve` with its data in
+`/var/lib/headscale`, configure the privileged helper:
+
+```bash
+# For deb/rpm packages:
+helper_files=/usr/share/doc/meshpanel
+# For a source checkout or extracted release tarball, use instead:
+# helper_files=deploy
+sudo install -d -o root -g root -m 0755 /etc/meshpanel
+sudo install -o root -g root -m 0600 "$helper_files/headscale-update.example.yaml" /etc/meshpanel/headscale-update.yaml
+sudo editor /etc/meshpanel/headscale-update.yaml
+sudo meshpanel headscale update --check
+sudo meshpanel headscale update
+```
+
+If you installed only the bare binary, obtain the `deploy/` helper files from
+the matching release tarball or source checkout first.
+
+Set the helper's paths and health URL to match the actual service. It reads
+`config_dir/config.yaml`; the SQLite database must use an absolute path within
+`data_dir`. Keep all Headscale state in that directory. PostgreSQL, containers,
+relative database paths and installations with external state require a manual
+upgrade. The helper configuration and its parent directories must be owned by
+root and must not be writable by other users. Its `-c` flag selects this separate
+helper configuration, **not** Meshpanel's normal config file.
+
+To enable installation in the UI, first install a Meshpanel binary containing
+this command at `/usr/bin/meshpanel` (a staged self-update alone is insufficient).
+Validate and install `/usr/share/doc/meshpanel/headscale-update.sudoers`
+(deb/rpm), or `deploy/headscale-update.sudoers` (source checkout or extracted
+release tarball), as `/etc/sudoers.d/meshpanel-headscale-update` using `visudo`. Set
+`headscale.update_enabled: true` in Meshpanel's config, and restart Meshpanel.
+Owners then get an **Install Headscale** button with a version-specific
+confirmation. The helper runs as a separate systemd job so Meshpanel can retain
+its read-only system filesystem sandbox. Keep the fixed sudoers command intact;
+do not grant wildcard command arguments.
+
+Both entry points download from `juanfont/headscale` over HTTPS and check the
+binary against upstream `checksums.txt`; this is not Meshpanel's signed-release
+verification. The service is stopped before backing up its binary, configuration
+and complete data directory. The binary is atomically replaced, the service is
+started, and its health endpoint is checked. `Restart=always` is supported because
+an explicit systemd stop suppresses automatic restart during backup.
+
+Backups are retained in `backup_dir/before-update-*` (root-only), and their path
+is reported after installation. If startup or health checks fail, inspect the
+Headscale journal and the backup before recovery. The helper does not automatically
+downgrade a potentially migrated database. UI update actions are recorded in the
+audit log. A browser disconnect does not cancel the installation once started.
+
 ## How device approval works
 
 ```
@@ -243,7 +300,8 @@ meshpanel version
   - Taps are authorized per person, even in group chats.
   - Every decision is audited with its channel.
 - **Proxies:** `X-Forwarded-For` is honored only from `server.trusted_proxies`.
-- **Updates:** installed only if signed with the release key built into the binary, and only by an owner after a confirmation. The private key lives in the project's GitHub Actions secrets, never in the repository.
+- **Meshpanel updates:** require the release signature verified with the key built into the binary. UI installs require owner confirmation; CLI installs require filesystem access to the staging directory. The private signing key lives in the project's GitHub Actions secrets, never in the repository.
+- **Headscale updates:** the root helper verifies upstream checksums over HTTPS, not Meshpanel release signatures. UI installs require owner confirmation; direct CLI installs require root access and do not use panel authentication or owner confirmation.
 - **Secrets:** meshpanel refuses to start with a short or example `session_secret`.
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
