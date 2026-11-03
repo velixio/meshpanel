@@ -106,14 +106,79 @@
   }
 
   // ---------- confirm / copy / misc ----------
-  // Boosted forms confirm through htmx's hx-confirm; this covers forms htmx
-  // doesn't handle (hx-boost="false") and the no-htmx fallback.
+  let confirmation = null;
+  const approvedForms = new WeakSet();
+
+  // Use the same accessible dialog for htmx requests and ordinary form posts.
+  function confirmAction(message, source, submitter, proceed) {
+    if (confirmation) return;
+    const trigger = submitter || document.activeElement;
+    const button = submitter || (source.matches("button, input") ? source : source.querySelector('button[type="submit"], button:not([type]), input[type="submit"]'));
+    const label = source.dataset.confirmAction || (button && (button.getAttribute("aria-label") || button.textContent.trim() || button.value)) || "Continue";
+    const dialog = document.createElement("dialog");
+    dialog.className = "confirm-dialog";
+    dialog.setAttribute("aria-labelledby", "confirm-title");
+    dialog.setAttribute("aria-describedby", "confirm-message");
+    dialog.innerHTML = '<h2 id="confirm-title"></h2><p id="confirm-message"></p><div class="confirm-actions"><button type="button" class="btn" data-cancel autofocus>Cancel</button><button type="button" class="btn primary" data-accept></button></div>';
+    dialog.querySelector("h2").textContent = label;
+    dialog.querySelector("p").textContent = message;
+    const accept = dialog.querySelector("[data-accept]");
+    accept.textContent = label;
+    if (button && button.classList.contains("danger")) accept.className = "btn danger";
+    let accepted = false;
+    dialog.querySelector("[data-cancel]").addEventListener("click", () => dialog.close());
+    accept.addEventListener("click", () => {
+      if (accepted) return;
+      accepted = true;
+      accept.disabled = true;
+      dialog.close();
+    });
+    // Keep page shortcuts (such as the command palette) out of this modal.
+    dialog.addEventListener("keydown", (event) => event.stopPropagation());
+    dialog.addEventListener("close", () => {
+      confirmation = null;
+      dialog.remove();
+      if (trigger && trigger.isConnected) trigger.focus();
+      if (accepted && source.isConnected) proceed();
+    }, { once: true });
+    confirmation = dialog;
+    document.body.appendChild(dialog);
+    dialog.showModal();
+  }
+
+  document.addEventListener("htmx:confirm", (e) => {
+    if (!e.detail.question) return;
+    e.preventDefault();
+    const source = e.detail.elt;
+    if (approvedForms.has(source)) {
+      e.detail.issueRequest(true);
+      return;
+    }
+    const submitter = e.detail.triggeringEvent && e.detail.triggeringEvent.submitter;
+    confirmAction(e.detail.question, source, submitter, () => e.detail.issueRequest(true));
+  });
+
   document.addEventListener("submit", (e) => {
-    const f = e.target;
-    const boosted = window.htmx && f.closest("[hx-boost=true]") && !f.closest("[hx-boost=false]");
-    const msg = f.getAttribute("hx-confirm");
-    if (msg && !boosted && !window.confirm(msg)) e.preventDefault();
+    const form = e.target;
+    const message = form.getAttribute("hx-confirm");
+    if (!message || approvedForms.has(form)) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    const submitter = e.submitter;
+    confirmAction(message, form, submitter, () => {
+      approvedForms.add(form);
+      try {
+        form.requestSubmit(submitter || undefined);
+      } finally {
+        approvedForms.delete(form);
+      }
+    });
   }, true);
+
+  // A live refresh or navigation must not leave an obsolete action pending.
+  document.addEventListener("htmx:beforeSwap", () => {
+    if (confirmation) confirmation.close();
+  });
 
   document.addEventListener("click", (e) => {
     const c = e.target.closest("[data-copy]");
