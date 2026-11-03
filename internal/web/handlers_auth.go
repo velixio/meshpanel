@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -112,6 +113,7 @@ func (s *Server) loginPost(w http.ResponseWriter, r *http.Request) {
 	}
 	tok, err := s.Sessions.Create(ctx, acc.ID, clientIP(r), r.UserAgent(), false)
 	if err != nil {
+		slog.Error("create login session", "account_id", acc.ID, "err", err)
 		fail("Could not start a session. Try again.")
 		return
 	}
@@ -205,6 +207,7 @@ func (s *Server) finishLogin(w http.ResponseWriter, r *http.Request, id *identit
 	_ = s.Sessions.Revoke(ctx, id.Session.ID)
 	tok, err := s.Sessions.Create(ctx, id.Account.ID, clientIP(r), r.UserAgent(), true)
 	if err != nil {
+		slog.Error("create authenticated session", "account_id", id.Account.ID, "err", err)
 		s.renderError(w, r, 500, "Sign-in failed", "Could not create a session.")
 		return
 	}
