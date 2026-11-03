@@ -58,7 +58,13 @@ Then let meshpanel restart headscale. Choose one of these:
 sudo install -m 0440 deploy/sudoers /etc/sudoers.d/meshpanel && sudo visudo -c
 ```
 
-**polkit** (lets you set `NoNewPrivileges=yes` in the unit). Create
+The service must allow `CAP_SETUID CAP_SETGID CAP_AUDIT_WRITE` in its
+`CapabilityBoundingSet` and use `NoNewPrivileges=no` for sudo to work. These
+settings are included in the supplied service file. For older installed units,
+see [the upgrade override below](#sudo-capability-errors).
+
+**polkit** (lets you set `NoNewPrivileges=yes` only if Headscale UI updates and
+all other sudo integrations are disabled). Create
 `/etc/polkit-1/rules.d/50-meshpanel.rules`:
 
 ```js
@@ -123,3 +129,35 @@ front.
 ```sh
 sudo -u meshpanel meshpanel backup /var/lib/meshpanel/backup-$(date +%F).db
 ```
+
+## Sudo capability errors
+
+If a UI operation reports `sudo: unable to change to root gid: Operation not
+permitted` with `sudoers_audit`, the older unit's empty capability bounding set
+prevents sudo from switching identity. A sudoers rule alone cannot grant those
+kernel capabilities. Install a drop-in for the **meshpanel** service:
+
+```sh
+sudo systemctl edit meshpanel
+```
+
+Add:
+
+```ini
+[Service]
+CapabilityBoundingSet=
+CapabilityBoundingSet=CAP_SETUID CAP_SETGID CAP_AUDIT_WRITE
+NoNewPrivileges=no
+```
+
+Then apply it:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl restart meshpanel
+sudo systemctl show meshpanel -p CapabilityBoundingSet -p NoNewPrivileges
+```
+
+Keep `ProtectSystem=strict` and the other sandbox settings enabled. The fixed
+sudoers rules still restrict permitted commands. Headscale binary installation
+runs in a separate root systemd job; the panel itself remains unprivileged.

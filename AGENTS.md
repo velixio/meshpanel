@@ -29,7 +29,11 @@ green check alone does not mean all review findings have been addressed.
 - For UI changes, verify affected interactions and responsive rendering. For
   privileged/service changes, check permissions, fixed command arguments, path
   validation, backup coverage, concurrent execution, and failure recovery. State
-  explicitly when real systemd behavior has not been exercised.
+  explicitly when real systemd behavior has not been exercised. For sudo-based
+  helpers, test under the service's capability bounding set and sandbox, not just
+  from an interactive shell: sudo needs identity-switching/audit capabilities,
+  and `NoNewPrivileges=yes` prevents setuid escalation. Use a disposable
+  transient unit when available; never stop or modify a real service for a test.
 - Confirm only intended files are staged. Report the validation performed and any
   remaining limitations accurately; local checks do not imply remote CI passed.
 
