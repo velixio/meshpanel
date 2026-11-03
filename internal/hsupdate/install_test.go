@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// fixture creates an isolated binary, configuration, and SQLite data tree for upgrade tests.
 func fixture(t *testing.T) (Config, string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -28,6 +29,7 @@ func fixture(t *testing.T) (Config, string) {
 	return c, filepath.Join(dir, "new")
 }
 
+// TestInstallLifecycle checks replacement ordering, backup contents, and service recovery.
 func TestInstallLifecycle(t *testing.T) {
 	for _, fail := range []string{"", "backup", "health", "start", "stop"} {
 		t.Run(fail, func(t *testing.T) {
@@ -87,6 +89,7 @@ func TestInstallLifecycle(t *testing.T) {
 	}
 }
 
+// TestInstallRefusesConcurrentOperation ensures a held lock prevents a second installation.
 func TestInstallRefusesConcurrentOperation(t *testing.T) {
 	c, binary := fixture(t)
 	f, err := os.OpenFile(filepath.Join(c.BackupDir, "update.lock"), os.O_CREATE|os.O_RDWR, 0600)
@@ -104,6 +107,7 @@ func TestInstallRefusesConcurrentOperation(t *testing.T) {
 	}
 }
 
+// TestConfigRejectsUnsafePaths covers ambiguous paths, overlapping backups, and invalid service targets.
 func TestConfigRejectsUnsafePaths(t *testing.T) {
 	c, _ := fixture(t)
 	for _, mutate := range []func(*Config){func(c *Config) { c.Binary = "headscale" }, func(c *Config) { c.BackupDir = c.DataDir + "/backup" }, func(c *Config) { c.Service = "--bad" }, func(c *Config) { c.HealthURL = "https://remote/health" }} {
@@ -118,6 +122,7 @@ func TestConfigRejectsUnsafePaths(t *testing.T) {
 	}
 }
 
+// TestInstallRejectsUnsupportedDatabase ensures unsupported databases never reach service operations.
 func TestInstallRejectsUnsupportedDatabase(t *testing.T) {
 	c, binary := fixture(t)
 	if err := os.WriteFile(filepath.Join(c.ConfigDir, "config.yaml"), []byte("database:\n  type: postgres\n"), 0600); err != nil {

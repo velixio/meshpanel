@@ -13,6 +13,7 @@ import (
 	"github.com/meshpanel/meshpanel/internal/update"
 )
 
+// TestHeadscaleUpdatesOwnerOnlyAndConfirmed checks role restrictions, exact confirmation, and upgrade policy.
 func TestHeadscaleUpdatesOwnerOnlyAndConfirmed(t *testing.T) {
 	h := newHarness(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

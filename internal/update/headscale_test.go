@@ -12,6 +12,7 @@ import (
 	"testing"
 )
 
+// TestHeadscalePatchPolicy permits only newer stable patches in the same release line.
 func TestHeadscalePatchPolicy(t *testing.T) {
 	for _, tt := range []struct {
 		from, to string
@@ -23,6 +24,7 @@ func TestHeadscalePatchPolicy(t *testing.T) {
 	}
 }
 
+// TestHeadscaleDownloadVerification rejects tampered downloads and preserves verified bytes.
 func TestHeadscaleDownloadVerification(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux binaries")

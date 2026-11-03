@@ -140,6 +140,7 @@ type updateView struct {
 	CheckedAt string
 }
 
+// settings renders configuration, service status, and available update controls.
 func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 	if !s.need(w, r, perm.ConfigureIAM) {
 		return
@@ -212,6 +213,7 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 
 var hexColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
+// settingsPost applies the selected settings action after checking the required permissions.
 func (s *Server) settingsPost(w http.ResponseWriter, r *http.Request) {
 	if !s.need(w, r, perm.ConfigureIAM) {
 		return

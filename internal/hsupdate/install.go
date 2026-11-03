@@ -92,6 +92,8 @@ func (c Config) Validate() error {
 	}
 	return nil
 }
+
+// within reports whether path is contained in parent after lexical normalization.
 func within(parent, path string) bool {
 	rel, err := filepath.Rel(parent, path)
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator))
@@ -132,6 +134,7 @@ type Installer struct {
 	ExpectedCurrent string
 }
 
+// command runs a fixed helper executable and includes diagnostic output on failure.
 func command(ctx context.Context, name string, args ...string) error {
 	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 	if err != nil {
@@ -260,6 +263,8 @@ func (i Installer) Install(ctx context.Context, binary string) (backup string, e
 	}
 	return backup, nil
 }
+
+// waitHealthy polls the local endpoint for up to 30 seconds without following redirects.
 func waitHealthy(ctx context.Context, raw string) error {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

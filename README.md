@@ -209,11 +209,18 @@ For a service running `/usr/bin/headscale serve` with its data in
 `/var/lib/headscale`, configure the privileged helper:
 
 ```bash
-sudo install -o root -g root -m 0600 deploy/headscale-update.example.yaml /etc/meshpanel/headscale-update.yaml
+# For deb/rpm packages:
+helper_files=/usr/share/doc/meshpanel
+# For a source checkout or extracted release tarball, use instead:
+# helper_files=deploy
+sudo install -o root -g root -m 0600 "$helper_files/headscale-update.example.yaml" /etc/meshpanel/headscale-update.yaml
 sudo editor /etc/meshpanel/headscale-update.yaml
 sudo meshpanel headscale update --check
 sudo meshpanel headscale update
 ```
+
+If you installed only the bare binary, obtain the `deploy/` helper files from
+the matching release tarball or source checkout first.
 
 Set the helper's paths and health URL to match the actual service. It reads
 `config_dir/config.yaml`; the SQLite database must use an absolute path within
@@ -225,8 +232,9 @@ helper configuration, **not** Meshpanel's normal config file.
 
 To enable installation in the UI, first install a Meshpanel binary containing
 this command at `/usr/bin/meshpanel` (a staged self-update alone is insufficient).
-Validate and install `deploy/headscale-update.sudoers` as
-`/etc/sudoers.d/meshpanel-headscale-update` using `visudo`, set
+Validate and install `/usr/share/doc/meshpanel/headscale-update.sudoers`
+(deb/rpm), or `deploy/headscale-update.sudoers` (source checkout or extracted
+release tarball), as `/etc/sudoers.d/meshpanel-headscale-update` using `visudo`. Set
 `headscale.update_enabled: true` in Meshpanel's config, and restart Meshpanel.
 Owners then get an **Install Headscale** button with a version-specific
 confirmation. The helper runs as a separate systemd job so Meshpanel can retain

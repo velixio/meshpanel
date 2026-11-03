@@ -99,6 +99,7 @@ func setupLogging(level string) {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: l})))
 }
 
+// runServe initializes dependencies and runs the panel until shutdown or an update restart.
 func runServe(args []string) error {
 	fs := flag.NewFlagSet("serve", flag.ExitOnError)
 	cfgPath := configFlag(fs)
