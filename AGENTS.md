@@ -47,3 +47,10 @@ SQLite databases, WAL, or SHM files as a repair, and never automatically change
 ownership or permissions. Diagnostic commands must not initialize missing
 databases or run migrations. Root-run diagnostics must not open SQLite and
 create root-owned artifacts; verify write access as the actual service user.
+
+## Confirmation dialogs
+
+Use the shared themed in-app dialog for accepting or cancelling actions. Do not
+introduce browser-native alert, confirm, or prompt dialogs. Preserve keyboard
+focus, Escape/Cancel dismissal, form validation, and exactly-once submission.
+Run `scripts/test_confirmations.py` with Playwright when changing this behavior.

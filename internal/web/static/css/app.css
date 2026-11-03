@@ -368,3 +368,11 @@ kbd { font-size: 11px; padding: 1px 5px; border-radius: 4px; border: 1px var(--b
 
 /* Diagnostic commands must wrap safely on narrow screens. */
 .database-diagnostics { white-space: pre-wrap; overflow-wrap: anywhere; font: 12px/1.6 var(--mono); margin: 0; }
+
+/* Shared confirmations use the active theme and the browser's modal focus trap. */
+.confirm-dialog { width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 24px; color: var(--text); background: var(--surface); border: 1px var(--border-style) var(--border-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); overflow: auto; }
+.confirm-dialog::backdrop { background: var(--overlay); }
+.confirm-dialog h2 { margin: 0 0 12px; font-size: 18px; overflow-wrap: anywhere; }
+.confirm-dialog p { margin: 0; color: var(--text-2); line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.confirm-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.confirm-actions .btn { min-height: 44px; white-space: normal; }
