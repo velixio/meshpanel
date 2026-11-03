@@ -209,3 +209,9 @@ func (d *DB) UseTOTPStep(ctx context.Context, id, step int64) (bool, error) {
 	n, _ := res.RowsAffected()
 	return n == 1, nil
 }
+
+// RenameHSUserLinks updates device ownership links without rewriting account credentials.
+func (d *DB) RenameHSUserLinks(ctx context.Context, oldName, newName string) error {
+	_, err := d.SQL.ExecContext(ctx, `UPDATE accounts SET hs_user = ? WHERE hs_user = ?`, newName, oldName)
+	return err
+}

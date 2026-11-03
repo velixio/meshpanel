@@ -170,6 +170,21 @@ web_ssh:
 - **Policy, database mode** (`policy.mode: database`): edits go through headscale's API.
 - **Policy, file mode:** meshpanel writes the policy file and runs `headscale.reload_command`.
 
+### Usernames and account security
+
+**Users** lists Headscale usernames (device owners) and labels their display
+names separately. **Edit** opens the username editor. A linked panel account has
+its own sign-in username, which is shown on that page and is not changed by a
+Headscale rename.
+
+For password or authenticator recovery, choose **Manage password and two-factor**
+on the user edit page, or open the account under **People → Security**. Admins can
+manage accounts with permissions no greater than their own; owner accounts
+require an owner. Password resets sign out all existing sessions. Two-factor
+resets also remove backup codes and require fresh enrollment at the next sign-in;
+they do not permanently turn off the two-factor requirement. A Headscale user
+without a linked panel account has no panel password or authenticator to reset.
+
 ### Updating
 
 **Settings → Updates** (owners only) checks GitHub for a newer release. **Install** asks you to confirm, downloads the release, verifies it, and restarts the panel.
