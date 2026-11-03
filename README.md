@@ -300,7 +300,8 @@ meshpanel version
   - Taps are authorized per person, even in group chats.
   - Every decision is audited with its channel.
 - **Proxies:** `X-Forwarded-For` is honored only from `server.trusted_proxies`.
-- **Updates:** installed only if signed with the release key built into the binary, and only by an owner after a confirmation. The private key lives in the project's GitHub Actions secrets, never in the repository.
+- **Meshpanel updates:** require the release signature verified with the key built into the binary. UI installs require owner confirmation; CLI installs require filesystem access to the staging directory. The private signing key lives in the project's GitHub Actions secrets, never in the repository.
+- **Headscale updates:** the root helper verifies upstream checksums over HTTPS, not Meshpanel release signatures. UI installs require owner confirmation; direct CLI installs require root access and do not use panel authentication or owner confirmation.
 - **Secrets:** meshpanel refuses to start with a short or example `session_secret`.
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md).

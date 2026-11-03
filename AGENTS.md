@@ -3,7 +3,9 @@
 ## Before pushing a branch
 
 Review the complete PR diff against its base, not just the latest commit. Verify
-review findings against the code and address valid issues before pushing.
+review findings against the code and address valid issues before pushing. Read
+both inline comments and full review bodies, including out-of-diff findings; a
+green check alone does not mean all review findings have been addressed.
 
 - Document every new or modified named Go function with a useful Go doc comment,
   including unexported helpers, tests, and existing functions whose bodies change.
