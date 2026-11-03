@@ -213,6 +213,7 @@ For a service running `/usr/bin/headscale serve` with its data in
 helper_files=/usr/share/doc/meshpanel
 # For a source checkout or extracted release tarball, use instead:
 # helper_files=deploy
+sudo install -d -o root -g root -m 0755 /etc/meshpanel
 sudo install -o root -g root -m 0600 "$helper_files/headscale-update.example.yaml" /etc/meshpanel/headscale-update.yaml
 sudo editor /etc/meshpanel/headscale-update.yaml
 sudo meshpanel headscale update --check

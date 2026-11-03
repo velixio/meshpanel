@@ -14,6 +14,9 @@ review findings against the code and address valid issues before pushing.
   source checkout/release tarball paths (`deploy/`), installed deb/rpm paths
   (`/usr/share/doc/meshpanel/`), and bare-binary installations, which do not include
   helper files. Cross-check source/destination paths against `.goreleaser.yaml`.
+  Walk setup instructions from an empty installation: create required parent
+  directories before installing files, with the ownership and modes the helper
+  requires. Do not assume package-created directories exist for binary users.
 - Inspect `go.mod`/`go.sum` after dependency changes or merges. Use `go mod tidy`
   when needed and review the result; do not leave duplicate requirements.
 - Run `git diff --check`. For Go/runtime changes, run `make lint` and
