@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"sort"
 	"strconv"
@@ -17,11 +18,13 @@ import (
 
 type userRow struct {
 	hs.User
-	Nodes   int
-	Online  int
-	Account *db.Account
+	Nodes            int
+	Online           int
+	Account          *db.Account
+	CanManageAccount bool
 }
 
+// users lists Headscale usernames, display names, and linked panel accounts.
 func (s *Server) users(w http.ResponseWriter, r *http.Request) {
 	if !s.need(w, r, perm.ReadUsers) {
 		return
@@ -46,10 +49,49 @@ func (s *Server) users(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		c := counts[u.Name]
-		rows = append(rows, userRow{User: u, Nodes: c[0], Online: c[1], Account: owners[u.Name]})
+		account := owners[u.Name]
+		rows = append(rows, userRow{User: u, Nodes: c[0], Online: c[1], Account: account, CanManageAccount: canManageAccount(who(r), account)})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
 	s.render(w, r, "users", s.page(w, r, "users", "Users", rows))
+}
+
+// canManageAccount mirrors the account-management permissions used by loadPerson.
+func canManageAccount(actor *identity, target *db.Account) bool {
+	return actor != nil && target != nil && actor.Caps.Has(perm.ConfigureIAM) &&
+		(actor.Account.ID == target.ID || perm.Within(perm.Effective(target.Role, perm.Cap(target.ExtraCaps)), actor.Caps))
+}
+
+// userEdit renders a normal page so editing cannot be clipped by the Users table.
+func (s *Server) userEdit(w http.ResponseWriter, r *http.Request) {
+	if !s.need(w, r, perm.WriteUsers) {
+		return
+	}
+	users, err := s.HS.ListUsers(r.Context())
+	if err != nil {
+		s.failed(w, r, s.base+"/users", err)
+		return
+	}
+	for _, u := range users {
+		if u.ID != r.PathValue("id") || u.ID == hs.TaggedDevicesUserID {
+			continue
+		}
+		owners, err := s.DB.AccountsByHSUser(r.Context())
+		if err != nil {
+			s.failed(w, r, s.base+"/users", err)
+			return
+		}
+		d := userRow{User: u, Account: owners[u.Name]}
+		d.CanManageAccount = canManageAccount(who(r), d.Account)
+		for _, n := range s.Poller.Snapshot() {
+			if n.UserName() == u.Name {
+				d.Nodes++
+			}
+		}
+		s.render(w, r, "user", s.page(w, r, "users", "Edit "+u.Name, d))
+		return
+	}
+	s.renderError(w, r, http.StatusNotFound, "User not found", "")
 }
 
 func (s *Server) userCreate(w http.ResponseWriter, r *http.Request) {
@@ -70,6 +112,7 @@ func (s *Server) userCreate(w http.ResponseWriter, r *http.Request) {
 	s.ok(w, r, "", "Created headscale user "+u.Name+".")
 }
 
+// userAction renames or deletes a current Headscale user and preserves linked account ownership.
 func (s *Server) userAction(w http.ResponseWriter, r *http.Request) {
 	if !s.need(w, r, perm.WriteUsers) {
 		return
@@ -77,8 +120,13 @@ func (s *Server) userAction(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	uid := r.PathValue("id")
 	var user *hs.User
-	for _, u := range s.Poller.Users() {
-		if u.ID == uid {
+	users, err := s.HS.ListUsers(ctx)
+	if err != nil {
+		s.failed(w, r, s.base+"/users", err)
+		return
+	}
+	for _, u := range users {
+		if u.ID == uid && u.ID != hs.TaggedDevicesUserID {
 			user = &u
 			break
 		}
@@ -98,17 +146,16 @@ func (s *Server) userAction(w http.ResponseWriter, r *http.Request) {
 			s.failed(w, r, "", err)
 			return
 		}
-		// Keep panel accounts linked to the renamed user.
-		if accs, err := s.DB.ListAccounts(ctx); err == nil {
-			for _, a := range accs {
-				if a.HSUser == user.Name {
-					a.HSUser = name
-					_ = s.DB.UpdateAccount(ctx, a)
-				}
-			}
+		// Keep links synchronized without overwriting unrelated credential fields.
+		if err := s.DB.RenameHSUserLinks(ctx, user.Name, name); err != nil {
+			slog.Error("update account links after Headscale rename", "old_username", user.Name, "new_username", name, "err", err)
+			s.Poller.Refresh()
+			s.failed(w, r, s.base+"/users", errors.New("Headscale username changed, but panel account links could not be updated. Check the linked account under People."))
+			return
 		}
 		s.audit(r, "user.rename", user.Name, user.Name, name)
-		s.ok(w, r, "", "Renamed "+user.Name+" to "+name+".")
+		s.Poller.Refresh()
+		s.ok(w, r, s.base+"/users/"+uid, "Renamed username "+user.Name+" to "+name+".")
 	case "delete":
 		for _, n := range s.Poller.Snapshot() {
 			if n.UserName() == user.Name {
@@ -121,7 +168,8 @@ func (s *Server) userAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.audit(r, "user.delete", user.Name, user, nil)
-		s.ok(w, r, "", "Deleted "+user.Name+".")
+		s.Poller.Refresh()
+		s.ok(w, r, s.base+"/users", "Deleted "+user.Name+".")
 	default:
 		http.NotFound(w, r)
 	}
@@ -283,6 +331,7 @@ func (s *Server) person(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "person", s.page(w, r, "people", acc.Name(), d))
 }
 
+// personAction manages account access and credentials within the acting administrator's permissions.
 func (s *Server) personAction(w http.ResponseWriter, r *http.Request) {
 	acc, ok := s.loadPerson(w, r)
 	if !ok {
@@ -357,13 +406,10 @@ func (s *Server) personAction(w http.ResponseWriter, r *http.Request) {
 		s.audit(r, "person."+r.PathValue("action"), acc.Username, nil, nil)
 		s.ok(w, r, here, acc.Username+" "+r.PathValue("action")+"d.")
 	case "reset2fa":
-		acc.TOTPEnabled, acc.TOTPSecret = false, ""
-		if err := s.DB.UpdateAccount(ctx, acc); err != nil {
+		if err := s.DB.ResetAccountTwoFactor(ctx, acc.ID); err != nil {
 			s.failed(w, r, here, err)
 			return
 		}
-		_ = s.DB.ReplaceBackupCodes(ctx, acc.ID, nil)
-		_ = s.DB.DeleteSessionsFor(ctx, acc.ID, "")
 		s.audit(r, "person.reset_2fa", acc.Username, nil, nil)
 		s.securityAlert(id.Account.Username + " reset two-factor for " + acc.Username)
 		s.ok(w, r, here, "Two-factor reset. "+acc.Username+" sets it up again at next sign-in.")
@@ -382,12 +428,10 @@ func (s *Server) personAction(w http.ResponseWriter, r *http.Request) {
 			s.failed(w, r, here, err)
 			return
 		}
-		acc.PasswordHash = hash
-		if err := s.DB.UpdateAccount(ctx, acc); err != nil {
+		if err := s.DB.SetAccountPassword(ctx, acc.ID, hash); err != nil {
 			s.failed(w, r, here, err)
 			return
 		}
-		_ = s.DB.DeleteSessionsFor(ctx, acc.ID, "")
 		s.audit(r, "person.set_password", acc.Username, nil, nil)
 		s.ok(w, r, here, "Password set. Share it with "+acc.Username+" privately.")
 	case "delete":

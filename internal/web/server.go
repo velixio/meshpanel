@@ -163,6 +163,7 @@ func New(d Deps) (*Server, error) {
 	return s, nil
 }
 
+// Handler registers authenticated routes and applies request security middleware.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	b := s.base
@@ -213,6 +214,7 @@ func (s *Server) Handler() http.Handler {
 
 	page("GET "+b+"/users", s.users)
 	page("POST "+b+"/users", s.userCreate)
+	page("GET "+b+"/users/{id}", s.userEdit)
 	page("POST "+b+"/users/{id}/{action}", s.userAction)
 
 	page("GET "+b+"/people", s.people)

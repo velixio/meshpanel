@@ -1,0 +1,35 @@
+{{define "content"}}{{$d := .Data}}
+<div class="page-head"><div>
+  <div class="crumbs"><a href="{{.Base}}/users">Users</a>{{icon "chev"}}</div>
+  <h1>Edit user</h1><p class="sub">Headscale username: {{$d.Name}}</p>
+</div></div>
+<div class="split">
+  <section class="card">
+    <div class="hd"><h2>Headscale user</h2></div>
+    <form class="bd stack" method="post" action="{{.Base}}/users/{{$d.ID}}/rename">{{template "csrf" .CSRF}}
+      <label class="field">Username<input class="input" name="name" value="{{$d.Name}}" minlength="2" maxlength="32" autocapitalize="none" aria-describedby="username-help" required></label>
+      <p class="help" id="username-help">Identifies the user that owns these devices. Renaming it does not change the panel sign-in username.</p>
+      <dl class="kv"><dt>Display name</dt><dd>{{if $d.DisplayName}}{{$d.DisplayName}}{{else}}Not set{{end}}</dd><dt>Devices</dt><dd>{{$d.Nodes}}</dd></dl>
+      <div><button class="btn primary">Save username</button> <a class="btn" href="{{.Base}}/users">Cancel</a></div>
+    </form>
+  </section>
+  <div class="stack lg">
+    <section class="card">
+      <div class="hd"><h2>Panel account</h2></div>
+      <div class="bd stack">
+        {{if $d.Account}}
+        <dl class="kv"><dt>Sign-in username</dt><dd>{{$d.Account.Username}}</dd><dt>Display name</dt><dd>{{if $d.Account.DisplayName}}{{$d.Account.DisplayName}}{{else}}Not set{{end}}</dd><dt>Role</dt><dd>{{$d.Account.Role}}</dd></dl>
+        {{if $d.CanManageAccount}}<a class="btn" href="{{.Base}}/people/{{$d.Account.ID}}#security">Manage password and two-factor</a>{{else}}<p class="help">You don't have permission to manage this panel account.</p>{{end}}
+        {{else}}<p class="muted">No panel account is linked to this Headscale user. There is no panel password or two-factor setup to reset.</p>{{if has .Caps "configure_iam"}}<a class="btn" href="{{.Base}}/people">Manage panel accounts</a>{{end}}{{end}}
+      </div>
+    </section>
+    <section class="card">
+      <div class="hd"><h2>Delete user</h2></div>
+      <form class="bd stack" method="post" action="{{.Base}}/users/{{$d.ID}}/delete" hx-confirm="Delete Headscale user {{$d.Name}}?">{{template "csrf" .CSRF}}
+        {{if $d.Nodes}}<p class="help">Move or delete this user's devices before deleting the user.</p>{{end}}
+        <button class="btn danger" {{if $d.Nodes}}disabled{{end}}>{{icon "trash"}}Delete Headscale user</button>
+      </form>
+    </section>
+  </div>
+</div>
+{{end}}

@@ -41,6 +41,7 @@ func (f *fakeHS) CreatePreAuthKey(_ context.Context, r hs.CreateKeyReq) (hs.PreA
 	return hs.PreAuthKey{ID: "2", Key: "newkey0123456789", Expiration: time.Now().Add(time.Hour)}, nil
 }
 
+// TestEveryPageRendersForEveryRole checks template rendering across all built-in access levels.
 func TestEveryPageRendersForEveryRole(t *testing.T) {
 	h := newHarness(t)
 	h.hs.users = []hs.User{{ID: "1", Name: "ravi"}, {ID: "2", Name: "anna"}}
@@ -51,7 +52,7 @@ func TestEveryPageRendersForEveryRole(t *testing.T) {
 	h.d.CreateWatch(ctx, db.WatchRule{AccountID: reqer.ID, SubjectType: "node", Subject: "1", Events: []string{"node_offline"}})
 	h.d.AddNotification(ctx, reqer.ID, "node_offline", "🔴 ravi-phone went offline")
 	h.d.InsertAudit(ctx, db.AuditEntry{Actor: "x", Channel: "web", Action: "test", Target: "y"})
-	pages := []string{"/admin/", "/admin/machines", "/admin/machines/1", "/admin/users", "/admin/people", "/admin/people/1",
+	pages := []string{"/admin/", "/admin/machines", "/admin/machines/1", "/admin/users", "/admin/users/1", "/admin/people", "/admin/people/1",
 		"/admin/keys", "/admin/machines/new", "/admin/access", "/admin/access?tab=editor", "/admin/dns", "/admin/alerts", "/admin/audit",
 		"/admin/settings", "/admin/account", "/admin/approvals", "/admin/search?q=ra", "/admin/audit.csv"}
 	withSSH(h) // render with the agent and browser SSH turned on

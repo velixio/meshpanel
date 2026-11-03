@@ -2,7 +2,7 @@
 <div class="page-head">
   <div><div class="crumbs"><a href="{{.Base}}/people">People</a>{{icon "chev"}}</div>
     <h1 class="row"><span class="avatar">{{initials $a.Name}}</span>{{$a.Name}} {{if $a.Disabled}}<span class="badge danger">disabled</span>{{end}}</h1>
-    <p class="sub">{{$a.Username}} · joined {{date $a.CreatedAt}} · last sign-in {{ago $a.LastLoginAt}}</p></div>
+    <p class="sub">Username: {{$a.Username}}{{if $a.DisplayName}} · Display name: {{$a.DisplayName}}{{end}} · joined {{date $a.CreatedAt}} · last sign-in {{ago $a.LastLoginAt}}</p></div>
 </div>
 <div class="split">
   <div class="stack lg">
@@ -38,7 +38,7 @@
         <button class="btn">Save</button>
       </form>
     </section>
-    <section class="card">
+    <section class="card" id="security">
       <div class="hd"><h2>Security</h2></div>
       <div class="bd stack">
         <div class="row between"><span>Two-factor</span>{{if $a.TOTPEnabled}}<span class="badge ok">on · {{$d.Codes}} backup codes</span>{{else}}<span class="badge warn">not set up</span>{{end}}</div>
@@ -46,10 +46,13 @@
         <div class="row between"><span>Active sessions</span><span>{{len $d.Sessions}}</span></div>
         <hr style="margin:4px 0">
         <form method="post" action="{{.Base}}/people/{{$a.ID}}/sessions">{{template "csrf" .CSRF}}<button class="btn block">{{icon "logout"}}Sign out everywhere</button></form>
-        <form method="post" action="{{.Base}}/people/{{$a.ID}}/reset2fa" hx-confirm="Reset two-factor for {{$a.Username}}? They must set it up again at next sign-in.">{{template "csrf" .CSRF}}<button class="btn block">{{icon "lock"}}Reset two-factor</button></form>
-        <details><summary class="btn block">{{icon "key"}}Set a new password</summary>
-          <form class="stack mt" method="post" action="{{.Base}}/people/{{$a.ID}}/password">{{template "csrf" .CSRF}}<input class="input" type="password" name="password" minlength="10" autocomplete="new-password" placeholder="At least 10 characters" required><button class="btn">Set password</button></form>
-        </details>
+        <form method="post" action="{{.Base}}/people/{{$a.ID}}/reset2fa" hx-confirm="Reset two-factor for {{$a.Username}}? They must set it up again at next sign-in.">{{template "csrf" .CSRF}}<button class="btn block" {{if not $a.TOTPEnabled}}disabled{{end}}>{{icon "lock"}}Reset two-factor</button></form>
+        <p class="help">Resetting two-factor removes the current authenticator and backup codes, signs this person out, and requires setup again at next sign-in.</p>
+        <form class="stack" method="post" action="{{.Base}}/people/{{$a.ID}}/password" hx-confirm="Set a new password for {{$a.Username}} and sign them out everywhere?">{{template "csrf" .CSRF}}
+          <label class="field">New password<input class="input" type="password" name="password" minlength="10" autocomplete="new-password" aria-describedby="password-help" required></label>
+          <p class="help" id="password-help">At least 10 characters. Existing sessions will be signed out.</p>
+          <button class="btn">{{icon "key"}}Set password</button>
+        </form>
         {{if not $d.IsMe}}
         <hr style="margin:4px 0">
         {{if $a.Disabled}}<form method="post" action="{{.Base}}/people/{{$a.ID}}/enable">{{template "csrf" .CSRF}}<button class="btn ok block">Enable account</button></form>
