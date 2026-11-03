@@ -1,5 +1,15 @@
 {{define "content"}}{{$d := .Data}}
 <div class="page-head"><div><h1>Settings</h1><p class="sub">Server status, branding and integrations.</p></div></div>
+{{if $d.DatabaseError}}
+<section class="card mb" id="database">
+  <div class="hd"><h2>Database</h2><span class="badge danger">write access failed</span></div>
+  <div class="bd stack">
+    <p class="err-text" role="alert">{{$d.DatabaseError}}</p>
+    <p>These checks do not change permissions or stored data. Review the reported owner and service settings before applying a repair.</p>
+    <pre class="database-diagnostics">{{$d.DatabaseRecovery}}</pre>
+  </div>
+</section>
+{{end}}
 <div class="grid g2">
   <section class="card">
     <div class="hd"><h2>headscale</h2>{{if $d.Healthy}}<span class="badge ok"><span class="dot on"></span>connected</span>{{else}}<span class="badge danger">unreachable</span>{{end}}</div>

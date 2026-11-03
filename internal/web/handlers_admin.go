@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/csv"
 	"errors"
@@ -126,6 +127,8 @@ type settingsData struct {
 	Update           updateView
 	HeadscaleUpdate  updateView
 	HeadscaleInstall bool
+	DatabaseError    string
+	DatabaseRecovery string
 }
 
 // updateView is the Settings → Updates card.
@@ -150,6 +153,13 @@ func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
 		Socket: s.Cfg.Headscale.Socket, Healthy: s.Poller.Healthy(), ApplyReady: s.Applier != nil,
 		TGEnabled: s.TG != nil, GroupChat: s.DB.GetSetting(ctx, "telegram.group_chat"), Brand: s.brand(ctx),
 		Users: s.Poller.Users(), Uptime: time.Since(s.start).Round(time.Minute).String(),
+	}
+	writeCtx, cancelWrite := context.WithTimeout(ctx, 5*time.Second)
+	writeErr := s.DB.CheckWritable(writeCtx)
+	cancelWrite()
+	if writeErr != nil {
+		d.DatabaseError = s.errorMessage(writeErr)
+		d.DatabaseRecovery = db.AccessInstructions(s.DB.Path())
 	}
 	if err := s.Poller.LastError(); err != nil {
 		d.HSError = err.Error()

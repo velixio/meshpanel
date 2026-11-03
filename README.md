@@ -338,6 +338,36 @@ make lint size   # gofmt/vet, and keep the binary under 40 MB (built with TSTAGS
 
 The UI uses server-rendered Go templates plus htmx, with no build step. CSS lives in `internal/web/static/css`: theme tokens in `tokens.css`, components in `app.css`. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+### Database write-access failures
+
+Meshpanel checks database write access at startup. If SQLite later becomes
+read-only, failed invitations and logins report the write-access problem instead
+of a generic server error. Administrators can open **Settings → Database** for
+ownership, process identity, and manual repair instructions; the server log also
+records recovery details. The Settings check uses a rolled-back, zero-row update
+and does not change stored data.
+
+Run diagnostics as the configured service user, normally:
+
+```sh
+sudo -u meshpanel /usr/bin/meshpanel doctor -c /etc/meshpanel/config.yaml
+```
+
+`doctor` requires an existing database and does not initialize or migrate it.
+When run as root, it only inspects database file metadata and asks you to rerun
+as the service user: root access cannot establish whether the service can write.
+The running server's check also reflects its systemd sandbox restrictions.
+
+For incorrect ownership, stop Meshpanel and follow the reported ownership and
+permission commands for the existing database, WAL, and SHM files. The service
+user also needs write/search access to the database directory. If ownership is
+correct, inspect mount permissions, ACLs, and systemd `ReadWritePaths`. Restart
+Meshpanel after repairs to reopen SQLite connections. Meshpanel does not
+perform automatic permission repairs or delete/recreate databases to recover
+from access errors. **Do not delete the database or its WAL/SHM files.** Run
+account-management CLI commands as the service user to avoid root-owned files.
+
+
 ## License
 
 MIT. Embedded fonts and htmx are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

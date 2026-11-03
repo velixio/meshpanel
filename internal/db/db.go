@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -23,31 +24,72 @@ var migrationsFS embed.FS
 var ErrNotFound = errors.New("not found")
 
 type DB struct {
-	SQL *sql.DB
-	now func() time.Time
+	SQL  *sql.DB
+	now  func() time.Time
+	path string
 }
 
 // Open opens (creating if needed) the database at path and runs migrations.
 func Open(path string) (*DB, error) {
-	if dir := filepath.Dir(path); dir != "" {
-		if err := os.MkdirAll(dir, 0o750); err != nil {
-			return nil, fmt.Errorf("creating db directory: %w", err)
-		}
-	}
-	dsn := "file:" + path + "?_pragma=journal_mode(WAL)&_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)"
-	s, err := sql.Open("sqlite", dsn)
+	absolute, err := filepath.Abs(path)
 	if err != nil {
 		return nil, err
 	}
-	// SQLite allows one writer; a single connection avoids SQLITE_BUSY and
-	// keeps the compare-and-set updates trivially serialized.
-	s.SetMaxOpenConns(1)
-	d := &DB{SQL: s, now: time.Now}
+	path = absolute
+	if _, err := os.Stat(path); err == nil {
+		if err = CheckFileAccess(path); err != nil {
+			return nil, err
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, &AccessError{Path: path, Err: err}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0750); err != nil {
+		return nil, &AccessError{Path: filepath.Dir(path), Err: err}
+	}
+	d, err := openSQLite(path, false)
+	if err != nil {
+		return nil, err
+	}
 	if err := d.migrate(); err != nil {
-		s.Close()
+		d.SQL.Close()
 		return nil, err
 	}
 	return d, nil
+}
+
+// OpenExisting opens only an existing database without creating directories or
+// running migrations. Diagnostics must not initialize a missing installation.
+func OpenExisting(path string) (*DB, error) {
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+	if err = CheckFileAccess(absolute); err != nil {
+		return nil, err
+	}
+	return openSQLite(absolute, true)
+}
+
+// openSQLite shares connection settings while distinguishing first-time setup
+// from a diagnostic connection that must never create a database.
+func openSQLite(path string, existing bool) (*DB, error) {
+	u := url.URL{Scheme: "file", Path: path}
+	q := u.Query()
+	if existing {
+		q.Set("mode", "rw")
+	} else {
+		q.Add("_pragma", "journal_mode(WAL)")
+	}
+	for _, p := range []string{"foreign_keys(1)", "busy_timeout(5000)", "synchronous(NORMAL)"} {
+		q.Add("_pragma", p)
+	}
+	u.RawQuery = q.Encode()
+	s, err := sql.Open("sqlite", u.String())
+	if err != nil {
+		return nil, err
+	}
+	s.SetMaxOpenConns(1)
+	return &DB{SQL: s, now: time.Now, path: path}, nil
 }
 
 func (d *DB) Close() error { return d.SQL.Close() }

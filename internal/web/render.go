@@ -236,8 +236,9 @@ func (s *Server) ok(w http.ResponseWriter, r *http.Request, to, msg string) {
 	s.done(w, r, to, "ok", msg)
 }
 
+// failed reports an operation error with database-specific recovery guidance when available.
 func (s *Server) failed(w http.ResponseWriter, r *http.Request, to string, err error) {
-	s.done(w, r, to, "danger", friendly(err))
+	s.done(w, r, to, "danger", s.errorMessage(err))
 }
 
 // back is the referring dashboard page, or the overview.
@@ -260,11 +261,27 @@ func internal(err error) string {
 	return errInternal
 }
 
+const errDatabaseReadOnly = "Meshpanel cannot write to its database. Ask an administrator to check ownership and write access in Settings → Database or the server log. Do not delete the database, WAL, or SHM files."
+
+// errorMessage records actionable diagnostics for database access errors while
+// keeping paths and service ownership out of unauthenticated responses.
+func (s *Server) errorMessage(err error) string {
+	if db.IsReadOnly(err) {
+		slog.Error("database is not writable", "err", err, "recovery", db.AccessInstructions(s.DB.Path()))
+		return errDatabaseReadOnly
+	}
+	return friendly(err)
+}
+
 // friendly makes an error short enough for a toast. Database errors are
 // logged, not shown: they leak schema details.
 func friendly(err error) string {
 	if err == nil {
 		return ""
+	}
+	if db.IsReadOnly(err) {
+		slog.Error("database is not writable", "err", err)
+		return errDatabaseReadOnly
 	}
 	var sqlErr *sqlite.Error
 	if errors.As(err, &sqlErr) {

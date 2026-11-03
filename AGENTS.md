@@ -39,3 +39,11 @@ green check alone does not mean all review findings have been addressed.
 
 These instructions do not authorize merging, releasing, or deploying beyond the
 user's requested scope. Do not add tests that merely repeat documentation text.
+
+## Database diagnostics and recovery
+
+Database access failures must preserve existing data. Never delete or recreate
+SQLite databases, WAL, or SHM files as a repair, and never automatically change
+ownership or permissions. Diagnostic commands must not initialize missing
+databases or run migrations. Root-run diagnostics must not open SQLite and
+create root-owned artifacts; verify write access as the actual service user.
