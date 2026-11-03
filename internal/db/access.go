@@ -131,8 +131,8 @@ func AccessInstructions(path string) string {
 	if os.Geteuid() == 0 {
 		out.WriteString("Root access does not prove that the service can write. Run doctor as the configured service user (normally: sudo -u meshpanel /usr/bin/meshpanel doctor -c /etc/meshpanel/config.yaml).\n")
 	} else if len(files) > 0 {
-		out.WriteString("If these files have incorrect ownership or owner write permissions, use the following for meshpanel.service:\nsudo systemctl stop meshpanel\n")
-		fmt.Fprintf(&out, "sudo chown -- %s %s\nsudo chmod u+rw -- %s\nsudo systemctl start meshpanel\n", shellQuote(username+":"+group), strings.Join(files, " "), strings.Join(files, " "))
+		out.WriteString("If these files have incorrect ownership or owner write permissions, replace SERVICE_USER:SERVICE_GROUP below with the configured meshpanel.service User and Group (use the user's primary group if Group is empty). Then run:\nsudo systemctl stop meshpanel\n")
+		fmt.Fprintf(&out, "sudo chown -- SERVICE_USER:SERVICE_GROUP %s\nsudo chmod u+rw -- %s\nsudo systemctl start meshpanel\n", strings.Join(files, " "), strings.Join(files, " "))
 	}
 	fmt.Fprintf(&out, "The service user also needs write/search access to %s. Check filesystem mount permissions, ACLs, and systemd ReadWritePaths if ownership is already correct. Restart Meshpanel after repairs to reopen SQLite connections.", filepath.Dir(path))
 	return out.String()
