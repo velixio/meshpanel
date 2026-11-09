@@ -11,7 +11,7 @@ require (
 	golang.org/x/term v0.47.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.61.0
-	tailscale.com v1.104.4
+	tailscale.com v1.104.5
 )
 
 require (
